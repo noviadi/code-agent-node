@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/conf": "^2.1.0",
     "@types/inquirer": "^9.0.8",
     "@types/jest": "^29.5.12",
     "@types/node": "^24.0.13",
