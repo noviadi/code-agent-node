@@ -93,7 +93,12 @@
     - Write unit tests for input handling
     - _Requirements: 5.1, 5.2, 5.4, 5.5_
 
-- [ ] 4. Create command routing system
+- [x] 4. Create command routing system
+
+
+
+
+
   - [x] 4.1 Implement SpecialCommand interface and base commands
 
 
@@ -106,7 +111,12 @@
     - Write unit tests for command interface
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-  - [ ] 4.2 Build CommandRouter for input routing
+  - [x] 4.2 Build CommandRouter for input routing
+
+
+
+
+
     - Implement CommandRouter class with command parsing logic
     - Add routing between special commands and regular chat input
     - Create auto-completion integration for commands

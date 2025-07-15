@@ -19,13 +19,38 @@ describe('CommandRouter', () => {
   let mockHistoryManager: jest.Mocked<HistoryManager>;
 
   beforeEach(() => {
-    mockAgent = new Agent(jest.fn(), jest.fn()) as jest.Mocked<Agent>;
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
-    mockSessionManager = new SessionManager({} as any) as jest.Mocked<SessionManager>;
-    mockHistoryManager = new HistoryManager() as jest.Mocked<HistoryManager>;
-
-    // Mock agent tools
-    mockAgent.getAvailableTools.mockReturnValue([]);
+    mockAgent = {
+      getAvailableTools: jest.fn().mockReturnValue([]),
+      processMessage: jest.fn(),
+      getConversationHistory: jest.fn()
+    } as any;
+    
+    mockDisplayManager = {
+      displayMessage: jest.fn(),
+      clearScreen: jest.fn(),
+      showProgress: jest.fn(),
+      displayWelcome: jest.fn(),
+      formatToolUsage: jest.fn()
+    } as any;
+    
+    mockSessionManager = {
+      getConfig: jest.fn(),
+      saveConversation: jest.fn(),
+      loadConversation: jest.fn(),
+      listConversations: jest.fn(),
+      exportConversation: jest.fn(),
+      updateConfig: jest.fn()
+    } as any;
+    
+    mockHistoryManager = {
+      add: jest.fn(),
+      getPrevious: jest.fn(),
+      getNext: jest.fn(),
+      search: jest.fn(),
+      persist: jest.fn(),
+      load: jest.fn(),
+      getRecent: jest.fn().mockReturnValue([])
+    } as any;
 
     commandRouter = new CommandRouter(
       mockAgent,
