@@ -1,50 +1,33 @@
 import { ConfigurationManager } from './configuration-manager';
 import { InteractiveCLIConfig } from '../types';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 
-// Mock the conf library
-jest.mock('conf', () => {
-  return jest.fn().mockImplementation(() => ({
-    get: jest.fn(),
-    set: jest.fn(),
-    path: '/mock/config/path'
-  }));
-});
+// Mock fs/promises and os
+jest.mock('fs/promises');
+jest.mock('os');
 
 describe('ConfigurationManager', () => {
   let configManager: ConfigurationManager;
-  let mockStore: any;
+  const mockFs = fs as jest.Mocked<typeof fs>;
+  const mockOs = os as jest.Mocked<typeof os>;
 
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
     
-    // Setup default mock returns before creating the instance
-    const mockGet = jest.fn().mockImplementation((key: keyof InteractiveCLIConfig) => {
-      const defaults: InteractiveCLIConfig = {
-        theme: 'default',
-        historySize: 100,
-        autoSave: true,
-        progressIndicators: true,
-        multiLineEditor: true
-      };
-      return defaults[key];
-    });
+    // Mock os.homedir
+    mockOs.homedir.mockReturnValue('/mock/home');
     
-    const mockSet = jest.fn();
-    
-    // Mock the conf constructor to return our mock store
-    const Conf = require('conf');
-    Conf.mockImplementation(() => ({
-      get: mockGet,
-      set: mockSet,
-      path: '/mock/config/path'
-    }));
+    // Mock fs operations - default to file not existing
+    mockFs.readFile.mockRejectedValue({ code: 'ENOENT' });
+    mockFs.writeFile.mockResolvedValue(undefined);
+    mockFs.access.mockRejectedValue(new Error('Directory does not exist'));
+    mockFs.mkdir.mockResolvedValue(undefined);
     
     // Create a new instance for each test
     configManager = new ConfigurationManager();
-    
-    // Get the mocked store instance
-    mockStore = (configManager as any).store;
   });
 
   describe('constructor', () => {
@@ -60,63 +43,56 @@ describe('ConfigurationManager', () => {
       });
     });
 
-    it('should create conf store with correct options', () => {
-      const Conf = require('conf');
-      
-      expect(Conf).toHaveBeenCalledWith({
-        projectName: 'code-agent-node-cli',
-        defaults: {
-          theme: 'default',
-          historySize: 100,
-          autoSave: true,
-          progressIndicators: true,
-          multiLineEditor: true
-        }
-      });
+    it('should set up correct config path', () => {
+      const configPath = configManager.getConfigPath();
+      expect(configPath).toBe(path.join('/mock/home', '.code-agent-node-cli', 'config.json'));
     });
   });
 
   describe('load', () => {
-    it('should load configuration from store', async () => {
-      mockStore.get.mockImplementation((key: string) => {
-        const mockConfig: any = {
-          theme: 'dark',
-          historySize: 150,
-          autoSave: false,
-          progressIndicators: false,
-          multiLineEditor: false
-        };
-        return mockConfig[key];
-      });
-
-      const config = await configManager.load();
-
-      expect(config).toEqual({
+    it('should load configuration from file', async () => {
+      const mockConfig = {
         theme: 'dark',
         historySize: 150,
         autoSave: false,
         progressIndicators: false,
         multiLineEditor: false
-      });
+      };
+      
+      mockFs.readFile.mockResolvedValue(JSON.stringify(mockConfig));
 
-      expect(mockStore.get).toHaveBeenCalledWith('theme');
-      expect(mockStore.get).toHaveBeenCalledWith('historySize');
-      expect(mockStore.get).toHaveBeenCalledWith('autoSave');
-      expect(mockStore.get).toHaveBeenCalledWith('progressIndicators');
-      expect(mockStore.get).toHaveBeenCalledWith('multiLineEditor');
+      const config = await configManager.load();
+
+      expect(config).toEqual(mockConfig);
+      expect(mockFs.readFile).toHaveBeenCalledWith(path.join('/mock/home', '.code-agent-node-cli', 'config.json'), 'utf-8');
+    });
+
+    it('should use defaults when file does not exist', async () => {
+      const error = new Error('File not found') as any;
+      error.code = 'ENOENT';
+      mockFs.readFile.mockRejectedValue(error);
+
+      const config = await configManager.load();
+
+      expect(config).toEqual({
+        theme: 'default',
+        historySize: 100,
+        autoSave: true,
+        progressIndicators: true,
+        multiLineEditor: true
+      });
     });
 
     it('should update internal config after loading', async () => {
-      mockStore.get.mockImplementation((key: string) => {
-        const mockConfig: any = {
-          theme: 'light',
-          historySize: 200,
-          autoSave: true,
-          progressIndicators: true,
-          multiLineEditor: false
-        };
-        return mockConfig[key];
-      });
+      const mockConfig = {
+        theme: 'light',
+        historySize: 200,
+        autoSave: true,
+        progressIndicators: true,
+        multiLineEditor: false
+      };
+      
+      mockFs.readFile.mockResolvedValue(JSON.stringify(mockConfig));
 
       await configManager.load();
       const config = configManager.getConfig();
@@ -128,7 +104,7 @@ describe('ConfigurationManager', () => {
   });
 
   describe('save', () => {
-    it('should save valid configuration to store', async () => {
+    it('should save valid configuration to file', async () => {
       const newConfig: InteractiveCLIConfig = {
         theme: 'dark',
         historySize: 150,
@@ -139,15 +115,19 @@ describe('ConfigurationManager', () => {
 
       await configManager.save(newConfig);
 
-      expect(mockStore.set).toHaveBeenCalledWith('theme', 'dark');
-      expect(mockStore.set).toHaveBeenCalledWith('historySize', 150);
-      expect(mockStore.set).toHaveBeenCalledWith('autoSave', false);
-      expect(mockStore.set).toHaveBeenCalledWith('progressIndicators', true);
-      expect(mockStore.set).toHaveBeenCalledWith('multiLineEditor', false);
+      expect(mockFs.mkdir).toHaveBeenCalledWith(path.join('/mock/home', '.code-agent-node-cli'), { recursive: true });
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join('/mock/home', '.code-agent-node-cli', 'config.json'),
+        JSON.stringify(newConfig, null, 2),
+        'utf-8'
+      );
       expect(configManager.getConfig()).toEqual(newConfig);
     });
 
     it('should throw error for invalid theme', async () => {
+      // Clear any calls from constructor
+      mockFs.writeFile.mockClear();
+      
       const invalidConfig: InteractiveCLIConfig = {
         theme: 'invalid-theme',
         historySize: 100,
@@ -160,7 +140,7 @@ describe('ConfigurationManager', () => {
         'Invalid theme: invalid-theme. Valid themes: default, dark, light, minimal'
       );
 
-      expect(mockStore.set).not.toHaveBeenCalled();
+      expect(mockFs.writeFile).not.toHaveBeenCalled();
     });
 
     it('should throw error for invalid history size', async () => {
@@ -211,11 +191,19 @@ describe('ConfigurationManager', () => {
 
       await configManager.update(updates);
 
-      expect(mockStore.set).toHaveBeenCalledWith('theme', 'dark');
-      expect(mockStore.set).toHaveBeenCalledWith('historySize', 200);
-      expect(mockStore.set).toHaveBeenCalledWith('autoSave', true);
-      expect(mockStore.set).toHaveBeenCalledWith('progressIndicators', true);
-      expect(mockStore.set).toHaveBeenCalledWith('multiLineEditor', true);
+      const expectedConfig = {
+        theme: 'dark',
+        historySize: 200,
+        autoSave: true,
+        progressIndicators: true,
+        multiLineEditor: true
+      };
+
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join('/mock/home', '.code-agent-node-cli', 'config.json'),
+        JSON.stringify(expectedConfig, null, 2),
+        'utf-8'
+      );
     });
 
     it('should validate updated configuration', async () => {
@@ -242,12 +230,19 @@ describe('ConfigurationManager', () => {
       // Update only theme
       await configManager.update({ theme: 'dark' });
 
-      // Check that the final calls include the preserved values
-      expect(mockStore.set).toHaveBeenCalledWith('theme', 'dark');
-      expect(mockStore.set).toHaveBeenCalledWith('historySize', 150);
-      expect(mockStore.set).toHaveBeenCalledWith('autoSave', false);
-      expect(mockStore.set).toHaveBeenCalledWith('progressIndicators', false);
-      expect(mockStore.set).toHaveBeenCalledWith('multiLineEditor', false);
+      const expectedConfig = {
+        theme: 'dark',
+        historySize: 150,
+        autoSave: false,
+        progressIndicators: false,
+        multiLineEditor: false
+      };
+
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join('/mock/home', '.code-agent-node-cli', 'config.json'),
+        JSON.stringify(expectedConfig, null, 2),
+        'utf-8'
+      );
     });
   });
 
@@ -292,19 +287,19 @@ describe('ConfigurationManager', () => {
         multiLineEditor: true
       });
 
-      expect(mockStore.set).toHaveBeenCalledWith('theme', 'default');
-      expect(mockStore.set).toHaveBeenCalledWith('historySize', 100);
-      expect(mockStore.set).toHaveBeenCalledWith('autoSave', true);
-      expect(mockStore.set).toHaveBeenCalledWith('progressIndicators', true);
-      expect(mockStore.set).toHaveBeenCalledWith('multiLineEditor', true);
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join('/mock/home', '.code-agent-node-cli', 'config.json'),
+        JSON.stringify(defaultConfig, null, 2),
+        'utf-8'
+      );
       expect(configManager.getConfig()).toEqual(defaultConfig);
     });
   });
 
   describe('getConfigPath', () => {
     it('should return the configuration file path', () => {
-      const path = configManager.getConfigPath();
-      expect(path).toBe('/mock/config/path');
+      const configPath = configManager.getConfigPath();
+      expect(configPath).toBe(path.join('/mock/home', '.code-agent-node-cli', 'config.json'));
     });
   });
 
@@ -325,10 +320,8 @@ describe('ConfigurationManager', () => {
   });
 
   describe('error handling', () => {
-    it('should handle store errors gracefully', async () => {
-      mockStore.set.mockImplementation(() => {
-        throw new Error('Store error');
-      });
+    it('should handle file system errors gracefully', async () => {
+      mockFs.writeFile.mockRejectedValue(new Error('File system error'));
 
       const config: InteractiveCLIConfig = {
         theme: 'default',
@@ -338,7 +331,7 @@ describe('ConfigurationManager', () => {
         multiLineEditor: true
       };
 
-      await expect(configManager.save(config)).rejects.toThrow('Store error');
+      await expect(configManager.save(config)).rejects.toThrow('File system error');
     });
 
     it('should validate all boolean fields', async () => {

@@ -1,30 +1,31 @@
-import Conf from 'conf';
 import { InteractiveCLIConfig } from '../types';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 
 /**
- * Manages configuration persistence and loading using the conf library
+ * Manages configuration persistence and loading using file-based storage
  * Provides methods for loading, saving, and updating CLI configuration
  */
 export class ConfigurationManager {
   private config: InteractiveCLIConfig;
-  private store: Conf;
+  private configPath: string;
 
   constructor() {
-    // Initialize conf store with default values
-    this.store = new Conf({
-      projectName: 'code-agent-node-cli',
-      defaults: this.getDefaultConfig()
-    });
-
+    // Set up configuration file path
+    const configDir = path.join(os.homedir(), '.code-agent-node-cli');
+    this.configPath = path.join(configDir, 'config.json');
+    
     // Load initial configuration
-    this.config = this.loadFromStore();
+    this.config = this.getDefaultConfig();
+    this.loadConfig();
   }
 
   /**
    * Load configuration from storage
    */
   async load(): Promise<InteractiveCLIConfig> {
-    this.config = this.loadFromStore();
+    await this.loadConfig();
     return this.config;
   }
 
@@ -35,12 +36,11 @@ export class ConfigurationManager {
     // Validate configuration before saving
     this.validateConfig(config);
     
-    // Save each property individually to the store
-    this.store.set('theme', config.theme);
-    this.store.set('historySize', config.historySize);
-    this.store.set('autoSave', config.autoSave);
-    this.store.set('progressIndicators', config.progressIndicators);
-    this.store.set('multiLineEditor', config.multiLineEditor);
+    // Ensure config directory exists
+    await this.ensureConfigDir();
+    
+    // Save configuration to file
+    await fs.writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
     
     this.config = config;
   }
@@ -73,7 +73,7 @@ export class ConfigurationManager {
    * Get the configuration file path
    */
   getConfigPath(): string {
-    return this.store.path;
+    return this.configPath;
   }
 
   /**
@@ -92,16 +92,40 @@ export class ConfigurationManager {
   }
 
   /**
-   * Load configuration from the conf store
+   * Load configuration from file
    */
-  private loadFromStore(): InteractiveCLIConfig {
-    return {
-      theme: this.store.get('theme') as string,
-      historySize: this.store.get('historySize') as number,
-      autoSave: this.store.get('autoSave') as boolean,
-      progressIndicators: this.store.get('progressIndicators') as boolean,
-      multiLineEditor: this.store.get('multiLineEditor') as boolean
-    };
+  private async loadConfig(): Promise<void> {
+    try {
+      const data = await fs.readFile(this.configPath, 'utf-8');
+      const loadedConfig = JSON.parse(data) as InteractiveCLIConfig;
+      
+      // Validate loaded configuration
+      this.validateConfig(loadedConfig);
+      this.config = loadedConfig;
+    } catch (error) {
+      // If file doesn't exist or is invalid, use defaults
+      this.config = this.getDefaultConfig();
+      
+      // Save default configuration for future use
+      try {
+        await this.save(this.config);
+      } catch (saveError) {
+        // If we can't save, just continue with defaults in memory
+        console.warn('Warning: Could not save default configuration:', (saveError as Error).message);
+      }
+    }
+  }
+
+  /**
+   * Ensure configuration directory exists
+   */
+  private async ensureConfigDir(): Promise<void> {
+    const configDir = path.dirname(this.configPath);
+    try {
+      await fs.access(configDir);
+    } catch {
+      await fs.mkdir(configDir, { recursive: true });
+    }
   }
 
   /**

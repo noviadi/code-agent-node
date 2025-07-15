@@ -40,7 +40,7 @@ export class ConversationStorage {
    * Generate unique conversation ID
    */
   private generateId(): string {
-    return `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `conv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
   /**
@@ -48,10 +48,10 @@ export class ConversationStorage {
    */
   async save(name: string, messages: any[]): Promise<void> {
     await this.ensureStorageDir();
-    
+
     const filePath = this.getConversationPath(name);
     const now = new Date();
-    
+
     // Check if conversation already exists to preserve creation date
     let existingMetadata: ConversationMetadata | null = null;
     try {
@@ -86,7 +86,7 @@ export class ConversationStorage {
    */
   async load(name: string): Promise<any[]> {
     const filePath = this.getConversationPath(name);
-    
+
     try {
       const data = await fs.readFile(filePath, 'utf-8');
       const conversation = JSON.parse(data) as StoredConversation;
@@ -104,13 +104,13 @@ export class ConversationStorage {
    */
   async list(): Promise<ConversationMetadata[]> {
     await this.ensureStorageDir();
-    
+
     try {
       const files = await fs.readdir(this.storageDir);
       const jsonFiles = files.filter(file => file.endsWith('.json'));
-      
+
       const conversations: ConversationMetadata[] = [];
-      
+
       for (const file of jsonFiles) {
         try {
           const filePath = path.join(this.storageDir, file);
@@ -122,9 +122,9 @@ export class ConversationStorage {
           console.warn(`Warning: Could not read conversation file ${file}: ${(error as Error).message}`);
         }
       }
-      
+
       // Sort by last modified date (newest first)
-      return conversations.sort((a, b) => 
+      return conversations.sort((a, b) =>
         new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
       );
     } catch (error) {
@@ -137,7 +137,7 @@ export class ConversationStorage {
    */
   async delete(name: string): Promise<void> {
     const filePath = this.getConversationPath(name);
-    
+
     try {
       await fs.unlink(filePath);
     } catch (error) {
@@ -155,7 +155,7 @@ export class ConversationStorage {
     const messages = await this.load(name);
     const conversations = await this.list();
     const metadata = conversations.find(c => c.name === name);
-    
+
     if (!metadata) {
       throw new Error(`Conversation '${name}' not found`);
     }
@@ -171,14 +171,14 @@ export class ConversationStorage {
       markdown += `**Last Modified:** ${new Date(metadata.lastModified).toLocaleString()}\n`;
       markdown += `**Messages:** ${metadata.messageCount}\n\n`;
       markdown += '---\n\n';
-      
+
       for (const message of messages) {
         const role = message.role || 'unknown';
         const content = message.content || '';
-        
+
         markdown += `## ${role.charAt(0).toUpperCase() + role.slice(1)}\n\n`;
         markdown += `${content}\n\n`;
-        
+
         if (message.tool_calls && message.tool_calls.length > 0) {
           markdown += '### Tool Calls\n\n';
           for (const toolCall of message.tool_calls) {
@@ -188,12 +188,12 @@ export class ConversationStorage {
             markdown += '\n```\n\n';
           }
         }
-        
+
         if (message.tool_call_id) {
           markdown += `*Tool Response (ID: ${message.tool_call_id})*\n\n`;
         }
       }
-      
+
       return markdown;
     } else {
       throw new Error(`Unsupported export format: ${format}`);
@@ -205,7 +205,7 @@ export class ConversationStorage {
    */
   async exists(name: string): Promise<boolean> {
     const filePath = this.getConversationPath(name);
-    
+
     try {
       await fs.access(filePath);
       return true;
