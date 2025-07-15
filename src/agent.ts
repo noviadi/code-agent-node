@@ -43,85 +43,91 @@ export class Agent {
     });
   }
 
+  private async executeToolCall(
+    toolUseBlock: Anthropic.ToolUseBlock,
+    conversation: Anthropic.MessageParam[],
+  ): Promise<void> {
+    const { id, name, input } = toolUseBlock;
+    const tool = this.tools.find(t => t.name === name);
+
+    if (tool) {
+      if (this.config.logToolUse) {
+        console.log(`\x1b[96mClaude is using tool:\x1b[0m ${name} with input ${JSON.stringify(input)}`);
+      }
+      const toolResult = await tool.execute(input);
+      if (this.config.logToolUse) {
+        console.log(`\x1b[96mTool result:\x1b[0m ${JSON.stringify(toolResult)}`);
+      }
+
+      conversation.push({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: id,
+          content: JSON.stringify(toolResult),
+        }],
+      });
+    } else {
+      console.error(`Tool ${name} not found.`);
+      conversation.push({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: id,
+          content: `Error: Tool ${name} not found.`,
+        }],
+      });
+    }
+  }
+
   async start(): Promise<void> {
     const conversation: Anthropic.MessageParam[] = [];
     console.log("Chat with Claude (type 'exit' to quit)");
 
+    let readUserInput = true;
     while (true) {
-      const userInput = await this.getUserInput();
+      if (readUserInput) {
+        const userInput = await this.getUserInput();
 
-      if (userInput.toLowerCase() === 'exit') {
-        break;
-      }
-
-      const userMessage: Anthropic.MessageParam = {
-        role: 'user',
-        content: userInput,
-      };
-      conversation.push(userMessage);
-
-      try {
-        let response = await this.runInference(conversation);
-
-        while (response.stop_reason === 'tool_use') {
-          // Add the assistant's tool_use message to the conversation history
-          conversation.push({
-            role: 'assistant',
-            content: response.content,
-          });
-
-          for (const contentBlock of response.content) {
-            if (contentBlock.type === 'tool_use') {
-              const { id, name, input } = contentBlock;
-              const tool = this.tools.find(t => t.name === name);
-
-              if (tool) {
-                if (this.config.logToolUse) {
-                  console.log(`\x1b[96mClaude is using tool:\x1b[0m ${name} with input ${JSON.stringify(input)}`);
-                }
-                const toolResult = await tool.execute(input);
-                if (this.config.logToolUse) {
-                  console.log(`\x1b[96mTool result:\x1b[0m ${JSON.stringify(toolResult)}`);
-                }
-
-                // Add the tool_result as a user message
-                conversation.push({
-                  role: 'user',
-                  content: [{
-                    type: 'tool_result',
-                    tool_use_id: id,
-                    content: JSON.stringify(toolResult),
-                  }],
-                });
-              } else {
-                console.error(`Tool ${name} not found.`);
-                // Add an error tool_result as a user message
-                conversation.push({
-                  role: 'user',
-                  content: [{
-                    type: 'tool_result',
-                    tool_use_id: id,
-                    content: `Error: Tool ${name} not found.`,
-                  }],
-                });
-              }
-            }
-          }
-          // After processing tool results, run inference again to get the final text response
-          response = await this.runInference(conversation);
+        if (userInput.toLowerCase() === 'exit') {
+          break;
         }
 
-        // If the final response is text, handle it
-        const assistantMessage = response.content[0];
-        if (assistantMessage.type === 'text') {
-          await this.handleResponse(assistantMessage.text);
-          conversation.push({
-              role: 'assistant',
-              content: assistantMessage.text,
-          });
+        const userMessage: Anthropic.MessageParam = {
+          role: 'user',
+          content: userInput,
+        };
+        conversation.push(userMessage);
+      }
+
+      try {
+        const response = await this.runInference(conversation);
+        conversation.push({
+          role: 'assistant',
+          content: response.content,
+        });
+
+        const toolResultsPresent = response.content.some(
+          (block) => block.type === 'tool_use'
+        );
+
+        if (toolResultsPresent) {
+          for (const contentBlock of response.content) {
+            if (contentBlock.type === 'tool_use') {
+              await this.executeToolCall(contentBlock, conversation);
+            }
+          }
+          readUserInput = false; // Continue with tool results
+        } else {
+          const assistantMessage = response.content[0];
+          if (assistantMessage.type === 'text') {
+            await this.handleResponse(assistantMessage.text);
+          }
+          readUserInput = true; // Wait for new user input
         }
       } catch (error) {
         console.error('Error:', error);
+        readUserInput = true; // Allow user to try again after error
       }
     }
   }
