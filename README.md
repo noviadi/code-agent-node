@@ -27,6 +27,13 @@ To start the agent:
 npm start
 ```
 
+Prompt your agent:
+
+```bash
+You: Create fizzbuzz.js with fizzbuzz implementation that can be run using NodeJS
+Clause: <magic>
+```
+
 Type `exit` to quit the agent.
 
 ## Testing
