@@ -1,5 +1,5 @@
 import { SpecialCommand } from '../types';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 import { MessageType } from '../types';
 import { HistoryManager } from '../components/history-manager';
 

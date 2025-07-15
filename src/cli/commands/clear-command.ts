@@ -1,5 +1,5 @@
 import { SpecialCommand } from '../types';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 
 export class ClearCommand implements SpecialCommand {
   name = 'clear';

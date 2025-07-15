@@ -1,5 +1,5 @@
 import { Agent } from '../agent';
-import { DisplayManager } from './display-manager';
+import { DisplayManager } from './components/display-manager';
 import { SessionManager } from './session-manager';
 import { SpecialCommand, MessageType } from './types';
 import { HistoryManager } from './components/history-manager';
