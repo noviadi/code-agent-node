@@ -123,7 +123,13 @@
     - Write unit tests for command routing
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 5. Develop session and conversation management
+- [x] 5. Develop session and conversation management
+
+
+
+
+
+
   - [x] 5.1 Create ConversationStorage for persistence
 
 

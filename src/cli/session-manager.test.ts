@@ -1,13 +1,16 @@
 import { SessionManager } from './session-manager';
 import { ConversationStorage } from './components/conversation-storage';
+import { ConfigurationManager } from './components/configuration-manager';
 import { InteractiveCLIConfig, ConversationMetadata } from './types';
 
-// Mock the ConversationStorage
+// Mock the ConversationStorage and ConfigurationManager
 jest.mock('./components/conversation-storage');
+jest.mock('./components/configuration-manager');
 
 describe('SessionManager', () => {
   let sessionManager: SessionManager;
   let mockStorage: jest.Mocked<ConversationStorage>;
+  let mockConfigManager: jest.Mocked<ConfigurationManager>;
   let mockConfig: InteractiveCLIConfig;
 
   beforeEach(() => {
@@ -23,8 +26,20 @@ describe('SessionManager', () => {
       multiLineEditor: true
     };
 
+    // Create mock configuration manager
+    mockConfigManager = {
+      getConfig: jest.fn().mockReturnValue(mockConfig),
+      update: jest.fn().mockResolvedValue(undefined),
+      load: jest.fn().mockResolvedValue(mockConfig),
+      save: jest.fn().mockResolvedValue(undefined),
+      resetToDefaults: jest.fn().mockResolvedValue(mockConfig),
+      getConfigPath: jest.fn().mockReturnValue('/mock/path'),
+      isValidTheme: jest.fn().mockReturnValue(true),
+      getAvailableThemes: jest.fn().mockReturnValue(['default', 'dark', 'light', 'minimal'])
+    } as any;
+
     // Create SessionManager instance
-    sessionManager = new SessionManager(mockConfig, './test-conversations');
+    sessionManager = new SessionManager(mockConfigManager, './test-conversations');
 
     // Get the mocked storage instance
     mockStorage = (sessionManager as any).storage as jest.Mocked<ConversationStorage>;
@@ -38,7 +53,7 @@ describe('SessionManager', () => {
     });
 
     it('should use default storage directory when not provided', () => {
-      new SessionManager(mockConfig);
+      new SessionManager();
       expect(ConversationStorage).toHaveBeenCalledWith(undefined);
     });
   });
@@ -414,6 +429,51 @@ describe('SessionManager', () => {
       expect(consoleSpy).toHaveBeenCalledWith('Auto-save failed: Failed to save conversation \'test-conversation\': Save failed');
       
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('configuration management', () => {
+    it('should get current configuration', () => {
+      const config = sessionManager.getConfig();
+
+      expect(mockConfigManager.getConfig).toHaveBeenCalled();
+      expect(config).toEqual(mockConfig);
+    });
+
+    it('should update configuration', async () => {
+      const updates = { theme: 'dark', historySize: 200 };
+
+      await sessionManager.updateConfig(updates);
+
+      expect(mockConfigManager.update).toHaveBeenCalledWith(updates);
+    });
+
+    it('should handle configuration update errors', async () => {
+      const updates = { theme: 'invalid' };
+      const configError = new Error('Invalid theme');
+      mockConfigManager.update.mockRejectedValue(configError);
+
+      await expect(sessionManager.updateConfig(updates))
+        .rejects.toThrow('Failed to update configuration: Invalid theme');
+    });
+
+    it('should save current session', async () => {
+      mockStorage.save.mockResolvedValue();
+      mockConfig.autoSave = true;
+      
+      // Set up current conversation
+      (sessionManager as any).currentConversation = 'test-conversation';
+      (sessionManager as any).currentMessages = [{ role: 'user', content: 'test' }];
+
+      await sessionManager.saveCurrentSession();
+
+      expect(mockStorage.save).toHaveBeenCalledWith('test-conversation', [{ role: 'user', content: 'test' }]);
+    });
+
+    it('should get configuration manager instance', () => {
+      const configManager = sessionManager.getConfigurationManager();
+
+      expect(configManager).toBe(mockConfigManager);
     });
   });
 });

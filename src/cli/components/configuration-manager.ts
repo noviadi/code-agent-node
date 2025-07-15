@@ -15,7 +15,7 @@ export class ConfigurationManager {
     // Set up configuration file path
     const configDir = path.join(os.homedir(), '.code-agent-node-cli');
     this.configPath = path.join(configDir, 'config.json');
-    
+
     // Load initial configuration
     this.config = this.getDefaultConfig();
     this.loadConfig();
@@ -35,13 +35,13 @@ export class ConfigurationManager {
   async save(config: InteractiveCLIConfig): Promise<void> {
     // Validate configuration before saving
     this.validateConfig(config);
-    
+
     // Ensure config directory exists
     await this.ensureConfigDir();
-    
+
     // Save configuration to file
     await fs.writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
-    
+
     this.config = config;
   }
 
@@ -98,14 +98,14 @@ export class ConfigurationManager {
     try {
       const data = await fs.readFile(this.configPath, 'utf-8');
       const loadedConfig = JSON.parse(data) as InteractiveCLIConfig;
-      
+
       // Validate loaded configuration
       this.validateConfig(loadedConfig);
       this.config = loadedConfig;
     } catch (error) {
       // If file doesn't exist or is invalid, use defaults
       this.config = this.getDefaultConfig();
-      
+
       // Save default configuration for future use
       try {
         await this.save(this.config);

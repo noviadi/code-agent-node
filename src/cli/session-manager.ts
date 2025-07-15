@@ -1,17 +1,18 @@
 import { InteractiveCLIConfig, ConversationMetadata } from './types';
 import { ConversationStorage } from './components/conversation-storage';
+import { ConfigurationManager } from './components/configuration-manager';
 
 /**
  * Manages conversation persistence and configuration
  */
 export class SessionManager {
-  private config: InteractiveCLIConfig;
+  private configManager: ConfigurationManager;
   private storage: ConversationStorage;
   private currentConversation: string | null = null;
   private currentMessages: any[] = [];
 
-  constructor(config: InteractiveCLIConfig, storageDir?: string) {
-    this.config = config;
+  constructor(configManager?: ConfigurationManager, storageDir?: string) {
+    this.configManager = configManager || new ConfigurationManager();
     this.storage = new ConversationStorage(storageDir);
   }
 
@@ -166,7 +167,8 @@ export class SessionManager {
    * Auto-save current conversation if enabled in config
    */
   async autoSaveIfEnabled(): Promise<void> {
-    if (this.config.autoSave && this.currentConversation && this.currentMessages.length > 0) {
+    const config = this.configManager.getConfig();
+    if (config.autoSave && this.currentConversation && this.currentMessages.length > 0) {
       try {
         await this.saveConversation(this.currentConversation, this.currentMessages);
       } catch (error) {
@@ -178,25 +180,34 @@ export class SessionManager {
 
   /**
    * Get current configuration
-   * Implementation will be added in task 5.3
    */
   getConfig(): InteractiveCLIConfig {
-    console.log('SessionManager.getConfig - implementation pending');
-    return this.config;
+    return this.configManager.getConfig();
   }
 
   /**
    * Update configuration settings
-   * Implementation will be added in task 5.3
    */
   async updateConfig(updates: Partial<InteractiveCLIConfig>): Promise<void> {
-    console.log('SessionManager.updateConfig - implementation pending');
+    try {
+      await this.configManager.update(updates);
+    } catch (error) {
+      throw new Error(`Failed to update configuration: ${(error as Error).message}`);
+    }
   }
 
   /**
    * Save current session (called during shutdown)
    */
   async saveCurrentSession(): Promise<void> {
-    console.log('SessionManager.saveCurrentSession - implementation pending');
+    // Auto-save current conversation if enabled
+    await this.autoSaveIfEnabled();
+  }
+
+  /**
+   * Get configuration manager instance
+   */
+  getConfigurationManager(): ConfigurationManager {
+    return this.configManager;
   }
 }
