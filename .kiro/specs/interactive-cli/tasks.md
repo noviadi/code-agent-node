@@ -136,7 +136,9 @@
     - Write unit tests for conversation storage
     - _Requirements: 6.1, 6.2, 6.4_
 
-  - [-] 5.2 Build SessionManager for conversation operations
+  - [x] 5.2 Build SessionManager for conversation operations
+
+
 
 
 
