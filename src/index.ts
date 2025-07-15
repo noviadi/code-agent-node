@@ -2,6 +2,7 @@ import * as readline from 'readline';
 import * as dotenv from 'dotenv';
 import { Agent, AgentConfig } from './agent';
 import { Tool } from './tools';
+import { readFile } from './tools/read-file';
 
 dotenv.config();
 
@@ -21,7 +22,7 @@ const handleResponse = async (respond: string) => {
 }
 
 async function main() {
-  const tools: Tool[] = [];
+  const tools: Tool[] = [readFile];
   const agentConfig: AgentConfig = {
     logToolUse: false, // Set to false to disable tool use logging
   };
