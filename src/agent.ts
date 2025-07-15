@@ -80,6 +80,10 @@ export class Agent {
     }
   }
 
+  getAvailableTools(): Tool[] {
+    return this.tools;
+  }
+
   async start(): Promise<void> {
     const conversation: Anthropic.MessageParam[] = [];
     console.log("Chat with Claude (type 'exit' to quit)");
