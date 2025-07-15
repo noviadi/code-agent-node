@@ -1,6 +1,7 @@
 import * as readline from 'readline';
 import * as dotenv from 'dotenv';
-import { Agent } from './agent';
+import { Agent, AgentConfig } from './agent';
+import { Tool } from './tools';
 
 dotenv.config();
 
@@ -20,7 +21,11 @@ const handleResponse = async (respond: string) => {
 }
 
 async function main() {
-  const agent = new Agent(getUserInput, handleResponse);
+  const tools: Tool[] = [];
+  const agentConfig: AgentConfig = {
+    logToolUse: false, // Set to false to disable tool use logging
+  };
+  const agent = new Agent(getUserInput, handleResponse, tools, agentConfig);
   await agent.start();
   rl.close();
 }
