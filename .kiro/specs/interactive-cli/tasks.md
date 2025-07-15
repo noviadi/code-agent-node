@@ -124,14 +124,22 @@
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
 - [ ] 5. Develop session and conversation management
-  - [ ] 5.1 Create ConversationStorage for persistence
+  - [x] 5.1 Create ConversationStorage for persistence
+
+
+
+
+
     - Implement ConversationStorage class with file-based storage
     - Add methods for saving, loading, and listing conversations
     - Create conversation metadata tracking
     - Write unit tests for conversation storage
     - _Requirements: 6.1, 6.2, 6.4_
 
-  - [ ] 5.2 Build SessionManager for conversation operations
+  - [-] 5.2 Build SessionManager for conversation operations
+
+
+
     - Implement SessionManager class with conversation management
     - Add export functionality for JSON and Markdown formats
     - Create conversation listing and selection features
