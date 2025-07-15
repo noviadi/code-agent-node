@@ -7,3 +7,7 @@ export { ProgressManager } from './progress-manager';
 export { ConfigurationManager } from './configuration-manager';
 export { ConversationStorage } from './conversation-storage';
 export { DisplayManager } from './display-manager';
+export { InputFormatter } from './input-formatter';
+
+// Re-export types
+export type { InputFormatOptions, InputValidationResult, CodeBlock } from './input-formatter';

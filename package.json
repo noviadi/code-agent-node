@@ -22,9 +22,11 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
+    "@types/highlight.js": "^9.12.4",
     "chalk": "^5.4.1",
     "commander": "^14.0.0",
     "dotenv": "^17.2.0",
+    "highlight.js": "^11.11.1",
     "inquirer": "^12.7.0",
     "node-persist": "^4.0.4",
     "ora": "^8.2.0",

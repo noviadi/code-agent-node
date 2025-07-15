@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { spawn } from 'child_process';
 import inquirer from 'inquirer';
+import { InputFormatter, InputFormatOptions, InputValidationResult } from './input-formatter';
 
 /**
  * Options for multi-line editing
@@ -22,9 +23,11 @@ export class MultiLineEditor {
   private currentLine: number = 0;
   private isEditing: boolean = false;
   private tempFilePath: string = '';
+  private inputFormatter: InputFormatter;
 
   constructor() {
     this.tempFilePath = path.join(os.tmpdir(), `cli-editor-${Date.now()}.txt`);
+    this.inputFormatter = new InputFormatter();
   }
 
   /**
@@ -74,14 +77,41 @@ export class MultiLineEditor {
           // Simulate Ctrl+E - open external editor
           const externalContent = await this.openExternalEditor();
           if (externalContent) {
-            return externalContent;
+            // Show preview with validation before returning
+            const shouldProceed = await this.showPreviewWithValidation(externalContent);
+            if (shouldProceed) {
+              return externalContent;
+            }
+            // If user wants to edit more, continue the loop
+            continue;
+          }
+          continue;
+        }
+
+        if (line.trim() === '\\preview' || line.trim() === '\\p') {
+          // Show current preview
+          const currentContent = this.content.join('\n');
+          if (currentContent.trim()) {
+            await this.showPreviewWithValidation(currentContent);
+          } else {
+            console.log('No content to preview yet.');
           }
           continue;
         }
 
         if (line.trim() === '\\done' || line.trim() === '\\end') {
-          // Finish editing
-          break;
+          // Finish editing with preview
+          const finalContent = this.content.join('\n');
+          if (finalContent.trim()) {
+            const shouldProceed = await this.showPreviewWithValidation(finalContent);
+            if (shouldProceed) {
+              break;
+            }
+            // Continue editing if user wants to make changes
+            continue;
+          } else {
+            break;
+          }
         }
 
         if (line.trim() === '\\cancel') {
@@ -97,15 +127,36 @@ export class MultiLineEditor {
 
         // Check if user wants to continue (empty line ends input)
         if (line.trim() === '' && this.content.length > 1) {
-          const { continueEditing } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'continueEditing',
-            message: 'Continue adding lines?',
-            default: false
+          const currentContent = this.content.join('\n');
+          
+          // Show mini preview for current content
+          console.log('\nCurrent input:');
+          console.log(this.formatPreview(currentContent, { maxPreviewLines: 10 }));
+          
+          const { action } = await inquirer.prompt([{
+            type: 'list',
+            name: 'action',
+            message: 'What would you like to do?',
+            choices: [
+              { name: 'Continue adding lines', value: 'continue' },
+              { name: 'Finish and show full preview', value: 'finish' },
+              { name: 'Cancel input', value: 'cancel' }
+            ],
+            default: 'finish'
           }]);
 
-          if (!continueEditing) {
-            break;
+          if (action === 'continue') {
+            continue;
+          } else if (action === 'finish') {
+            const shouldProceed = await this.showPreviewWithValidation(currentContent);
+            if (shouldProceed) {
+              break;
+            }
+            // Continue editing if validation failed or user wants changes
+            continue;
+          } else {
+            this.content = [];
+            return '';
           }
         }
 
@@ -185,26 +236,75 @@ export class MultiLineEditor {
   }
 
   /**
-   * Format and preview multi-line input with line numbers
+   * Format and preview multi-line input with enhanced formatting
    */
-  formatPreview(content: string): string {
-    if (!content.trim()) {
-      return '(empty)';
-    }
-
-    const lines = content.split('\n');
-    const maxLineNumWidth = lines.length.toString().length;
-    
-    const formattedLines = lines.map((line, index) => {
-      const lineNum = (index + 1).toString().padStart(maxLineNumWidth, ' ');
-      return `${lineNum} | ${line}`;
+  formatPreview(content: string, options: InputFormatOptions = {}): string {
+    return this.inputFormatter.formatPreview(content, {
+      showLineNumbers: true,
+      enableSyntaxHighlighting: true,
+      maxPreviewLines: 50,
+      ...options
     });
+  }
 
-    return [
-      '--- Preview ---',
-      ...formattedLines,
-      '--- End Preview ---'
-    ].join('\n');
+  /**
+   * Format input with error highlighting
+   */
+  formatWithErrorHighlighting(content: string): string {
+    const validationResult = this.inputFormatter.validateInput(content);
+    return this.inputFormatter.formatWithErrorHighlighting(content, validationResult);
+  }
+
+  /**
+   * Show formatted preview with validation
+   */
+  async showPreviewWithValidation(content: string): Promise<boolean> {
+    const validationResult = this.inputFormatter.validateInput(content);
+    const stats = this.inputFormatter.getInputStatistics(content);
+    
+    console.log('\n');
+    
+    // Show statistics
+    console.log(`📊 Input Statistics: ${stats.lines} lines, ${stats.characters} characters, ${stats.words} words`);
+    if (stats.codeBlocks > 0) {
+      console.log(`💻 Code blocks: ${stats.codeBlocks} (${stats.languages.join(', ')})`);
+    }
+    console.log('');
+    
+    // Show preview
+    if (validationResult.isValid && validationResult.warnings.length === 0) {
+      console.log(this.formatPreview(content));
+    } else {
+      console.log(this.formatWithErrorHighlighting(content));
+    }
+    
+    console.log('');
+    
+    // Show validation results
+    this.inputFormatter.displayValidationResults(validationResult);
+    
+    // Ask user if they want to proceed
+    if (!validationResult.isValid) {
+      const { proceed } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'proceed',
+        message: 'Input has validation errors. Do you want to edit it?',
+        default: true
+      }]);
+      return !proceed; // Return true if they want to continue editing
+    }
+    
+    if (validationResult.warnings.length > 0) {
+      const { proceed } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'proceed',
+        message: 'Input has warnings. Do you want to proceed anyway?',
+        default: true
+      }]);
+      return proceed;
+    }
+    
+    return true; // No issues, proceed
   }
 
   /**
