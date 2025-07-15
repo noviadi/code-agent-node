@@ -4,6 +4,7 @@ import { Agent, AgentConfig } from './agent';
 import { Tool } from './tools';
 import { readFile } from './tools/read-file';
 import { listFiles } from './tools/list-files';
+import { editFile } from './tools/edit-file';
 
 dotenv.config();
 
@@ -23,7 +24,7 @@ const handleResponse = async (respond: string) => {
 }
 
 async function main() {
-  const tools: Tool[] = [readFile, listFiles];
+  const tools: Tool[] = [readFile, listFiles, editFile];
   const agentConfig: AgentConfig = {
     logToolUse: false, // Set to false to disable tool use logging
   };
