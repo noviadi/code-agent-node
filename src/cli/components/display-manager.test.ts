@@ -297,8 +297,8 @@ describe('DisplayManager', () => {
     });
 
     describe('progress management', () => {
-        it('should create progress indicator', () => {
-            const progress = displayManager.showProgress('Loading...');
+        it('should create progress indicator', async () => {
+            const progress = await displayManager.showProgress('Loading...');
 
             expect(progress).toBeDefined();
             expect(typeof progress.start).toBe('function');

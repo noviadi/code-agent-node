@@ -104,7 +104,7 @@ export class DisplayManager {
   /**
    * Show progress indicator for operations
    */
-  showProgress(operation: string): ProgressIndicator {
+  async showProgress(operation: string): Promise<ProgressIndicator> {
     return this.progressManager.createIndicator(`progress-${Date.now()}`, operation);
   }
 
