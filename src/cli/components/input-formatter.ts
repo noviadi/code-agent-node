@@ -1,8 +1,26 @@
 import hljs from 'highlight.js';
 import { MessageType } from '../types';
 
-// Use require for chalk to avoid ES module issues in Jest
-const chalk = require('chalk');
+// Import chalk properly for both runtime and tests
+let chalk: any;
+try {
+  chalk = require('chalk');
+} catch {
+  // Fallback for testing environments
+  chalk = {
+    cyan: { bold: (text: string) => text },
+    gray: (text: string) => text,
+    hex: () => (text: string) => text,
+    red: Object.assign((text: string) => text, { bold: (text: string) => text }),
+    yellow: Object.assign((text: string) => text, { bold: (text: string) => text }),
+    green: (text: string) => text,
+    magenta: (text: string) => text,
+    blue: (text: string) => text,
+    bgGray: { white: (text: string) => text },
+    bgRed: { white: (text: string) => text },
+    bgYellow: { black: (text: string) => text }
+  };
+}
 
 /**
  * Options for input formatting and preview
@@ -61,37 +79,37 @@ export class InputFormatter {
 
     const lines = content.split('\n');
     const totalLines = lines.length;
-    
+
     // Truncate if too many lines
     const displayLines = maxPreviewLines > 0 && lines.length > maxPreviewLines
       ? lines.slice(0, maxPreviewLines)
       : lines;
 
     const maxLineNumWidth = Math.max(totalLines.toString().length, 2);
-    
+
     // Format each line
     const formattedLines = displayLines.map((line, index) => {
       let formattedLine = line;
-      
+
       // Show whitespace characters if enabled
       if (showWhitespace) {
         formattedLine = formattedLine
           .replace(/\t/g, chalk.gray('→'))
           .replace(/ /g, chalk.gray('·'));
       }
-      
+
       // Apply syntax highlighting if enabled
       if (enableSyntaxHighlighting) {
         formattedLine = this.applySyntaxHighlighting(formattedLine, index, lines);
       }
-      
+
       // Add line numbers
       if (showLineNumbers) {
         const lineNum = (index + 1).toString().padStart(maxLineNumWidth, ' ');
         const lineNumColor = this.getLineNumberColor(line);
         return `${chalk.hex(lineNumColor)(lineNum)} ${chalk.gray('│')} ${formattedLine}`;
       }
-      
+
       return formattedLine;
     });
 
@@ -121,7 +139,7 @@ export class InputFormatter {
   private applySyntaxHighlighting(line: string, lineIndex: number, allLines: string[]): string {
     // Check if this line is part of a code block
     const codeBlocks = this.detectCodeBlocks(allLines.join('\n'));
-    const currentCodeBlock = codeBlocks.find(block => 
+    const currentCodeBlock = codeBlocks.find(block =>
       lineIndex >= block.startLine && lineIndex <= block.endLine
     );
 
@@ -202,7 +220,7 @@ export class InputFormatter {
     while ((match = InputFormatter.CODE_BLOCK_REGEX.exec(content)) !== null) {
       const language = match[1] || 'text';
       const blockContent = match[2];
-      
+
       // Find line numbers for this block
       const beforeBlock = content.substring(0, match.index);
       const startLine = beforeBlock.split('\n').length - 1;

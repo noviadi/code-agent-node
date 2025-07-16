@@ -57,6 +57,11 @@ describe('InputHandler', () => {
     mockAutoCompleteEngine.getCompletions = jest.fn().mockReturnValue([]);
     mockAutoCompleteEngine.getCompletionCount = jest.fn().mockReturnValue(0);
 
+    mockMultiLineEditor.startEditing = jest.fn().mockResolvedValue('line 1\nline 2');
+    mockMultiLineEditor.openExternalEditor = jest.fn().mockResolvedValue('external content');
+    mockMultiLineEditor.formatPreview = jest.fn().mockReturnValue('formatted preview');
+    mockMultiLineEditor.cleanup = jest.fn();
+
     inputHandler = new InputHandler(
       mockConfig,
       mockHistoryManager,
@@ -177,15 +182,18 @@ describe('InputHandler', () => {
   });
 
   describe('getMultiLineInput', () => {
-    it('should collect multiple lines until empty line', async () => {
-      mockInquirer.prompt
-        .mockResolvedValueOnce({ line: 'first line' })
-        .mockResolvedValueOnce({ line: 'second line' })
-        .mockResolvedValueOnce({ line: '' });
+    it('should use MultiLineEditor for multi-line input', async () => {
+      mockMultiLineEditor.startEditing.mockResolvedValueOnce('first line\nsecond line');
 
       const result = await inputHandler.getInput('Enter text:', { multiLine: true });
 
       expect(result).toBe('first line\nsecond line');
+      expect(mockMultiLineEditor.startEditing).toHaveBeenCalledWith({
+        showLineNumbers: true,
+        enableExternalEditor: true,
+        prompt: 'Enter text:',
+        placeholder: 'Type your message here... (\\e for external editor, \\done to finish, \\preview to see current input)'
+      });
       expect(mockHistoryManager.add).toHaveBeenCalledWith({
         command: 'first line\nsecond line',
         timestamp: expect.any(Date),
@@ -194,7 +202,7 @@ describe('InputHandler', () => {
     });
 
     it('should handle empty multi-line input', async () => {
-      mockInquirer.prompt.mockResolvedValueOnce({ line: '' });
+      mockMultiLineEditor.startEditing.mockResolvedValueOnce('');
 
       const result = await inputHandler.getInput('Enter text:', { multiLine: true });
 
@@ -260,9 +268,7 @@ describe('InputHandler', () => {
     });
 
     it('should use multi-line mode when explicitly requested', async () => {
-      mockInquirer.prompt
-        .mockResolvedValueOnce({ line: 'line 1' })
-        .mockResolvedValueOnce({ line: '' });
+      mockMultiLineEditor.startEditing.mockResolvedValueOnce('line 1');
 
       const result = await inputHandler.getEnhancedInput('Enter text:', { multiLine: true });
 
@@ -270,9 +276,7 @@ describe('InputHandler', () => {
     });
 
     it('should auto-detect multi-line scenarios', async () => {
-      mockInquirer.prompt
-        .mockResolvedValueOnce({ line: 'some code' })
-        .mockResolvedValueOnce({ line: '' });
+      mockMultiLineEditor.startEditing.mockResolvedValueOnce('some code');
 
       const result = await inputHandler.getEnhancedInput('Write some code:');
 
@@ -396,13 +400,13 @@ describe('InputHandler', () => {
     });
 
     it('should handle multi-line input errors', async () => {
-      mockInquirer.prompt
-        .mockRejectedValueOnce(new Error('Multi-line error'))
-        .mockResolvedValueOnce({ userInput: '' }); // Fallback to basic input
+      mockMultiLineEditor.startEditing
+        .mockRejectedValueOnce(new Error('Multi-line error'));
+      mockInquirer.prompt.mockResolvedValueOnce({ userInput: 'fallback' });
 
       const result = await inputHandler.getInput('Enter text:', { multiLine: true });
 
-      expect(result).toBe(''); // Should fallback to basic input and return empty string
+      expect(result).toBe('fallback'); // Should fallback to basic input
     });
   });
 

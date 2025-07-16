@@ -101,55 +101,22 @@ export class InputHandler {
   }
 
   /**
-   * Get multi-line input with Shift+Enter support
+   * Get multi-line input with enhanced editing features
    */
   private async getMultiLineInput(prompt: string): Promise<string> {
-    console.log(`${prompt} (Press Shift+Enter for new line, Enter to finish, Ctrl+C to cancel)`);
-    
     this.isMultiLineMode = true;
-    this.multiLineBuffer = [];
-    let lineCount = 0;
-    const maxLines = 100; // Safety limit to prevent infinite loops
     
     try {
-      while (this.isMultiLineMode && lineCount < maxLines) {
-        const linePrompt = this.multiLineBuffer.length === 0 ? '> ' : '... ';
-        
-        const answers = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'line',
-            message: linePrompt.trim(),
-            validate: () => true, // Allow empty lines in multi-line mode
-            transformer: (input: string) => {
-              // Show hint for multi-line continuation
-              if (input.length === 0 && this.multiLineBuffer.length > 0) {
-                return '(Press Enter again to finish)';
-              }
-              return input;
-            }
-          }
-        ]);
-
-        const line = answers.line || '';
-        lineCount++;
-        
-        // Check for end of multi-line input (empty line when we have content)
-        if (line.trim() === '' && this.multiLineBuffer.length > 0) {
-          this.isMultiLineMode = false;
-          break;
-        }
-        
-        // Add non-empty lines or first empty line to buffer
-        if (line.trim() !== '' || this.multiLineBuffer.length === 0) {
-          this.multiLineBuffer.push(line);
-        }
-      }
-
-      const result = this.multiLineBuffer.join('\n').trim();
+      // Use the MultiLineEditor for enhanced multi-line input
+      const result = await this.multiLineEditor.startEditing({
+        showLineNumbers: true,
+        enableExternalEditor: true,
+        prompt: prompt,
+        placeholder: 'Type your message here... (\\e for external editor, \\done to finish, \\preview to see current input)'
+      });
       
-      // Add to history
-      if (result.length > 0) {
+      // Add to history if we got content
+      if (result.trim().length > 0) {
         this.historyManager.add({
           command: result,
           timestamp: new Date(),
@@ -160,7 +127,6 @@ export class InputHandler {
       return result;
     } finally {
       this.isMultiLineMode = false;
-      this.multiLineBuffer = [];
     }
   }
 
