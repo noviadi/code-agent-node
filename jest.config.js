@@ -2,13 +2,18 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
-  extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
+  moduleNameMapper: {
+    '^chalk$': '<rootDir>/src/__mocks__/chalk.js',
+    '^ora$': '<rootDir>/src/__mocks__/ora.js',
+    '^inquirer$': '<rootDir>/src/__mocks__/inquirer.js'
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(ora|chalk|inquirer)/)'
-  ]
+  setupFilesAfterEnv: ['<rootDir>/src/__mocks__/setup.js'],
+  collectCoverageFrom: [
+    'src/**/*.{ts,js}',
+    '!src/**/*.test.{ts,js}',
+    '!src/**/*.d.ts',
+    '!src/__mocks__/**'
+  ],
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageDirectory: 'coverage'
 };
