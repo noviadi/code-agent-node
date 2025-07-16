@@ -86,3 +86,55 @@ export interface ProgressIndicator {
   fail(message?: string): void;
   stop(): void;
 }
+
+// Error handling types
+export enum ErrorCategory {
+  INPUT_VALIDATION = 'input_validation',
+  NETWORK = 'network',
+  FILE_SYSTEM = 'file_system',
+  TOOL_EXECUTION = 'tool_execution',
+  CONFIGURATION = 'configuration',
+  INITIALIZATION = 'initialization',
+  UNKNOWN = 'unknown'
+}
+
+export enum ErrorSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+export interface CLIError extends Error {
+  category: ErrorCategory;
+  severity: ErrorSeverity;
+  context?: string;
+  recoverable: boolean;
+  timestamp: Date;
+  originalError?: Error;
+  getDisplayMessage(): string;
+  getDetailedInfo(): string;
+}
+
+export interface ErrorRecoveryStrategy {
+  canRecover(error: CLIError): boolean;
+  recover(error: CLIError): Promise<boolean>;
+  getFallbackAction?(error: CLIError): () => Promise<void>;
+}
+
+export interface ErrorHandlerConfig {
+  enableFallbacks: boolean;
+  logErrors: boolean;
+  showStackTrace: boolean;
+  maxRetries: number;
+  retryDelay: number;
+}
+
+// Fallback mode configuration
+export interface FallbackConfig {
+  useBasicReadline: boolean;
+  disableColors: boolean;
+  disableProgress: boolean;
+  disableAutoComplete: boolean;
+  disableHistory: boolean;
+}

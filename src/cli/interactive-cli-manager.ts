@@ -1,5 +1,5 @@
 import { Agent } from '../agent';
-import { InteractiveCLIConfig, MessageType } from './types';
+import { InteractiveCLIConfig, MessageType, ErrorHandlerConfig, FallbackConfig } from './types';
 import { InputHandler } from './input-handler';
 import { DisplayManager } from './components/display-manager';
 import { ThemeEngine } from './components/theme-engine';
@@ -10,6 +10,8 @@ import { MultiLineEditor } from './components/multi-line-editor';
 import { CommandRouter } from './command-router';
 import { SessionManager } from './session-manager';
 import { ConfigurationManager } from './components/configuration-manager';
+import { ErrorHandler } from './components/error-handler';
+import { FallbackCLIManager } from './components/fallback-cli-manager';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -17,57 +19,130 @@ import Anthropic from '@anthropic-ai/sdk';
  * Coordinates all CLI functionality and manages component interactions
  */
 export class InteractiveCLIManager {
-    private inputHandler: InputHandler;
-    private displayManager: DisplayManager;
-    private themeEngine: ThemeEngine;
-    private progressManager: ProgressManager;
-    private historyManager: HistoryManager;
-    private autoCompleteEngine: AutoCompleteEngine;
-    private multiLineEditor: MultiLineEditor;
-    private commandRouter: CommandRouter;
-    private sessionManager: SessionManager;
-    private configManager: ConfigurationManager;
+    private inputHandler!: InputHandler;
+    private displayManager!: DisplayManager;
+    private themeEngine!: ThemeEngine;
+    private progressManager!: ProgressManager;
+    private historyManager!: HistoryManager;
+    private autoCompleteEngine!: AutoCompleteEngine;
+    private multiLineEditor!: MultiLineEditor;
+    private commandRouter!: CommandRouter;
+    private sessionManager!: SessionManager;
+    private configManager!: ConfigurationManager;
+    private errorHandler: ErrorHandler;
+    private fallbackManager: FallbackCLIManager | null = null;
     private agent: Agent;
     private config: InteractiveCLIConfig;
     private isRunning: boolean = false;
     private conversation: Anthropic.MessageParam[] = [];
+    private isInFallbackMode: boolean = false;
 
     constructor(agent: Agent, config: InteractiveCLIConfig) {
         this.agent = agent;
         this.config = config;
 
-        // Initialize core components
-        this.configManager = new ConfigurationManager();
-        this.themeEngine = new ThemeEngine();
-        this.progressManager = new ProgressManager();
-        this.displayManager = new DisplayManager(this.themeEngine, this.progressManager);
-        
-        // Initialize input handling components
-        this.historyManager = new HistoryManager(config.historySize);
-        this.autoCompleteEngine = new AutoCompleteEngine();
-        this.multiLineEditor = new MultiLineEditor();
-        
-        this.inputHandler = new InputHandler(
-            config,
-            this.historyManager,
-            this.autoCompleteEngine,
-            this.multiLineEditor
-        );
+        // Initialize error handling first
+        const errorHandlerConfig: ErrorHandlerConfig = {
+            enableFallbacks: true,
+            logErrors: true,
+            showStackTrace: false,
+            maxRetries: 3,
+            retryDelay: 1000
+        };
 
-        // Initialize session and command management
-        this.sessionManager = new SessionManager(this.configManager);
-        this.commandRouter = new CommandRouter(
-            agent, 
-            this.displayManager, 
-            this.sessionManager,
-            this.historyManager
-        );
+        const fallbackConfig: FallbackConfig = {
+            useBasicReadline: false,
+            disableColors: false,
+            disableProgress: false,
+            disableAutoComplete: false,
+            disableHistory: false
+        };
+
+        this.errorHandler = new ErrorHandler(errorHandlerConfig, fallbackConfig);
+
+        try {
+            // Initialize core components with error handling
+            this.initializeCoreComponents();
+            
+            // Setup auto-completion with command suggestions
+            this.setupAutoCompletion();
+            
+            // Load components asynchronously
+            this.initializeComponents();
+            
+        } catch (error) {
+            // If initialization fails, prepare fallback mode
+            this.handleInitializationFailure(error instanceof Error ? error : new Error(String(error)));
+        }
+    }
+
+    /**
+     * Initialize core components with error handling
+     */
+    private initializeCoreComponents(): void {
+        try {
+            this.configManager = new ConfigurationManager();
+            this.themeEngine = new ThemeEngine();
+            this.progressManager = new ProgressManager();
+            this.displayManager = new DisplayManager(this.themeEngine, this.progressManager);
+            
+            // Set display manager for error handler
+            this.errorHandler.setDisplayManager(this.displayManager);
+            
+        } catch (error) {
+            throw new Error(`Failed to initialize core components: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        try {
+            // Initialize input handling components
+            this.historyManager = new HistoryManager(this.config.historySize);
+            this.autoCompleteEngine = new AutoCompleteEngine();
+            this.multiLineEditor = new MultiLineEditor();
+            
+            this.inputHandler = new InputHandler(
+                this.config,
+                this.historyManager,
+                this.autoCompleteEngine,
+                this.multiLineEditor
+            );
+            
+        } catch (error) {
+            throw new Error(`Failed to initialize input components: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        try {
+            // Initialize session and command management
+            this.sessionManager = new SessionManager(this.configManager);
+            this.commandRouter = new CommandRouter(
+                this.agent, 
+                this.displayManager, 
+                this.sessionManager,
+                this.historyManager
+            );
+            
+        } catch (error) {
+            throw new Error(`Failed to initialize session components: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * Handle initialization failure by setting up fallback mode
+     */
+    private handleInitializationFailure(error: Error): void {
+        console.error('⚠️  Advanced CLI features failed to initialize. Starting in fallback mode.');
+        console.error(`Error: ${error.message}`);
         
-        // Setup auto-completion with command suggestions
-        this.setupAutoCompletion();
+        this.isInFallbackMode = true;
         
-        // Load components asynchronously
-        this.initializeComponents();
+        const fallbackConfig: FallbackConfig = {
+            useBasicReadline: true,
+            disableColors: false,
+            disableProgress: true,
+            disableAutoComplete: true,
+            disableHistory: true
+        };
+        
+        this.fallbackManager = new FallbackCLIManager(this.agent, fallbackConfig);
     }
 
     /**
@@ -125,14 +200,34 @@ export class InteractiveCLIManager {
     async start(): Promise<void> {
         this.isRunning = true;
         
-        // Setup signal handlers for graceful shutdown
-        this.setupSignalHandlers();
+        // If in fallback mode, use fallback manager
+        if (this.isInFallbackMode && this.fallbackManager) {
+            await this.fallbackManager.start();
+            return;
+        }
         
-        // Display welcome message
-        this.displayManager.displayWelcome();
-        
-        // Start the main interaction loop
-        await this.mainInteractionLoop();
+        try {
+            // Setup signal handlers for graceful shutdown
+            this.setupSignalHandlers();
+            
+            // Display welcome message
+            this.displayManager.displayWelcome();
+            
+            // Start the main interaction loop
+            await this.mainInteractionLoop();
+            
+        } catch (error) {
+            const handled = await this.errorHandler.handleInitializationError(
+                error instanceof Error ? error : new Error(String(error)),
+                'CLI startup'
+            );
+            
+            if (!handled) {
+                // Fall back to basic CLI
+                console.error('⚠️  Falling back to basic CLI due to startup errors.');
+                await this.activateFallbackMode();
+            }
+        }
     }
 
     /**
@@ -159,22 +254,41 @@ export class InteractiveCLIManager {
             try {
                 if (readUserInput) {
                     // Get user input with enhanced features
-                    const userInput = await this.getUserInput();
+                    const userInput = await this.getUserInputWithErrorHandling();
                     
                     // Check for exit command
                     if (userInput.toLowerCase() === 'exit') {
                         break;
                     }
                     
-                    // Add to history
-                    this.historyManager.add({
-                        command: userInput,
-                        timestamp: new Date(),
-                        success: true
-                    });
+                    // Add to history with error handling
+                    try {
+                        this.historyManager.add({
+                            command: userInput,
+                            timestamp: new Date(),
+                            success: true
+                        });
+                    } catch (error) {
+                        await this.errorHandler.handleFileSystemError(
+                            error instanceof Error ? error : new Error(String(error)),
+                            'history management'
+                        );
+                    }
                     
                     // Check if it's a special command
-                    const isSpecialCommand = await this.commandRouter.routeInput(userInput);
+                    let isSpecialCommand = false;
+                    try {
+                        isSpecialCommand = await this.commandRouter.routeInput(userInput);
+                    } catch (error) {
+                        const handled = await this.errorHandler.handleError(
+                            error instanceof Error ? error : new Error(String(error)),
+                            'command routing'
+                        );
+                        if (!handled) {
+                            readUserInput = true;
+                            continue;
+                        }
+                    }
                     
                     if (isSpecialCommand) {
                         // Command was handled by router, continue to next input
@@ -191,27 +305,55 @@ export class InteractiveCLIManager {
                         content: userInput,
                     };
                     this.conversation.push(userMessage);
-                    this.sessionManager.addMessageToCurrentConversation(userMessage);
+                    
+                    try {
+                        this.sessionManager.addMessageToCurrentConversation(userMessage);
+                    } catch (error) {
+                        await this.errorHandler.handleFileSystemError(
+                            error instanceof Error ? error : new Error(String(error)),
+                            'session management'
+                        );
+                    }
                 }
                 
                 // Show progress indicator for Claude processing
-                const progressIndicator = await this.displayManager.showProgress('Claude is thinking...');
-                progressIndicator.start('Processing your request...');
+                let progressIndicator: any = null;
+                try {
+                    progressIndicator = await this.displayManager.showProgress('Claude is thinking...');
+                    progressIndicator.start('Processing your request...');
+                } catch (error) {
+                    // Progress indicator failed, continue without it
+                    await this.errorHandler.handleError(
+                        error instanceof Error ? error : new Error(String(error)),
+                        'progress indicator'
+                    );
+                }
                 
                 try {
-                    // Get response from agent
-                    const response = await this.runInference();
-                    progressIndicator.succeed('Response received');
+                    // Get response from agent with network error handling
+                    const response = await this.runInferenceWithErrorHandling();
+                    
+                    if (progressIndicator) {
+                        progressIndicator.succeed('Response received');
+                    }
                     
                     // Add assistant response to conversation
                     this.conversation.push({
                         role: 'assistant',
                         content: response.content,
                     });
-                    this.sessionManager.addMessageToCurrentConversation({
-                        role: 'assistant',
-                        content: response.content,
-                    });
+                    
+                    try {
+                        this.sessionManager.addMessageToCurrentConversation({
+                            role: 'assistant',
+                            content: response.content,
+                        });
+                    } catch (error) {
+                        await this.errorHandler.handleFileSystemError(
+                            error instanceof Error ? error : new Error(String(error)),
+                            'session management'
+                        );
+                    }
                     
                     // Check if tools were used
                     const toolResultsPresent = response.content.some(
@@ -222,7 +364,7 @@ export class InteractiveCLIManager {
                         // Execute tools and continue processing
                         for (const contentBlock of response.content) {
                             if (contentBlock.type === 'tool_use') {
-                                await this.executeToolCall(contentBlock);
+                                await this.executeToolCallWithErrorHandling(contentBlock);
                             }
                         }
                         readUserInput = false; // Continue with tool results
@@ -236,23 +378,51 @@ export class InteractiveCLIManager {
                     }
                     
                     // Auto-save if enabled
-                    await this.sessionManager.autoSaveIfEnabled();
+                    try {
+                        await this.sessionManager.autoSaveIfEnabled();
+                    } catch (error) {
+                        await this.errorHandler.handleFileSystemError(
+                            error instanceof Error ? error : new Error(String(error)),
+                            'auto-save'
+                        );
+                    }
                     
                 } catch (error) {
-                    progressIndicator.fail('Error processing request');
-                    this.displayManager.displayError(
+                    if (progressIndicator) {
+                        progressIndicator.fail('Error processing request');
+                    }
+                    
+                    const handled = await this.errorHandler.handleNetworkError(
                         error instanceof Error ? error : new Error(String(error)),
                         'agent processing'
                     );
+                    
+                    if (!handled) {
+                        this.displayManager.displayError(
+                            error instanceof Error ? error : new Error(String(error)),
+                            'agent processing'
+                        );
+                    }
+                    
                     readUserInput = true; // Allow user to try again
                 }
                 
             } catch (error) {
-                // Handle input errors
-                this.displayManager.displayError(
+                // Handle critical errors in the main loop
+                const handled = await this.errorHandler.handleError(
                     error instanceof Error ? error : new Error(String(error)),
-                    'input handling'
+                    'main interaction loop'
                 );
+                
+                if (!handled) {
+                    // Critical error - consider fallback mode
+                    const cliError = error instanceof Error ? error : new Error(String(error));
+                    if (this.errorHandler.shouldActivateFallback(cliError as any)) {
+                        await this.activateFallbackMode();
+                        break;
+                    }
+                }
+                
                 readUserInput = true;
             }
         }
@@ -439,5 +609,155 @@ export class InteractiveCLIManager {
      */
     searchHistory(query: string): any[] {
         return this.inputHandler.searchHistory(query);
+    }
+
+    /**
+     * Get user input with error handling
+     */
+    private async getUserInputWithErrorHandling(): Promise<string> {
+        try {
+            return await this.getUserInput();
+        } catch (error) {
+            const handled = await this.errorHandler.handleInputError(
+                error instanceof Error ? error : new Error(String(error)),
+                'user input'
+            );
+            
+            if (!handled) {
+                // Fallback to basic input
+                const fallbackConfig = this.errorHandler.getFallbackConfig();
+                if (fallbackConfig.useBasicReadline) {
+                    return await this.getBasicInput();
+                }
+                throw error;
+            }
+            
+            // Retry input after error handling
+            return await this.getUserInput();
+        }
+    }
+
+    /**
+     * Run inference with error handling and retries
+     */
+    private async runInferenceWithErrorHandling(): Promise<Anthropic.Message> {
+        try {
+            return await this.runInference();
+        } catch (error) {
+            const handled = await this.errorHandler.handleNetworkError(
+                error instanceof Error ? error : new Error(String(error)),
+                'Claude API'
+            );
+            
+            if (!handled) {
+                throw error;
+            }
+            
+            // Retry inference after error handling
+            return await this.runInference();
+        }
+    }
+
+    /**
+     * Execute tool call with error handling
+     */
+    private async executeToolCallWithErrorHandling(toolUseBlock: Anthropic.ToolUseBlock): Promise<void> {
+        try {
+            await this.executeToolCall(toolUseBlock);
+        } catch (error) {
+            const handled = await this.errorHandler.handleToolError(
+                error instanceof Error ? error : new Error(String(error)),
+                toolUseBlock.name
+            );
+            
+            if (!handled) {
+                // Add error result to conversation
+                const errorResultMessage: Anthropic.MessageParam = {
+                    role: 'user',
+                    content: [{
+                        type: 'tool_result',
+                        tool_use_id: toolUseBlock.id,
+                        content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                    }],
+                };
+                
+                this.conversation.push(errorResultMessage);
+                
+                try {
+                    this.sessionManager.addMessageToCurrentConversation(errorResultMessage);
+                } catch (sessionError) {
+                    // Ignore session errors during error handling
+                }
+            }
+        }
+    }
+
+    /**
+     * Activate fallback mode
+     */
+    private async activateFallbackMode(): Promise<void> {
+        console.log('🔄 Activating fallback mode...');
+        
+        this.isInFallbackMode = true;
+        
+        const fallbackConfig: FallbackConfig = {
+            useBasicReadline: true,
+            disableColors: false,
+            disableProgress: true,
+            disableAutoComplete: true,
+            disableHistory: true
+        };
+        
+        this.fallbackManager = new FallbackCLIManager(this.agent, fallbackConfig);
+        
+        // Stop current session and start fallback
+        this.isRunning = false;
+        await this.fallbackManager.start();
+    }
+
+    /**
+     * Get basic input using readline (fallback)
+     */
+    private async getBasicInput(): Promise<string> {
+        const readline = require('readline');
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        return new Promise((resolve) => {
+            rl.question('You: ', (answer: string) => {
+                rl.close();
+                resolve(answer);
+            });
+        });
+    }
+
+    /**
+     * Get error handler statistics
+     */
+    getErrorStats(): any {
+        return this.errorHandler.getErrorStats();
+    }
+
+    /**
+     * Get recent errors for debugging
+     */
+    getRecentErrors(count: number = 10): any[] {
+        return this.errorHandler.getRecentErrors(count);
+    }
+
+    /**
+     * Check if currently in fallback mode
+     */
+    isInFallback(): boolean {
+        return this.isInFallbackMode;
+    }
+
+    /**
+     * Get fallback configuration
+     */
+    getFallbackConfig(): FallbackConfig {
+        return this.errorHandler.getFallbackConfig();
     }
 }
