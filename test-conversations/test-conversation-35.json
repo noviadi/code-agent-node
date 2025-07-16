@@ -1,0 +1,91 @@
+{
+  "metadata": {
+    "id": "conv_1752671409264_kstbqdkj3",
+    "name": "test-conversation-35",
+    "created": "2025-07-16T13:10:09.255Z",
+    "lastModified": "2025-07-16T13:35:12.836Z",
+    "messageCount": 20
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "Message 0 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 1 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 2 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 3 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 4 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 5 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 6 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 7 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 8 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 9 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 10 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 11 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 12 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 13 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 14 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 15 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 16 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 17 in iteration 35"
+    },
+    {
+      "role": "user",
+      "content": "Message 18 in iteration 35"
+    },
+    {
+      "role": "assistant",
+      "content": "Message 19 in iteration 35"
+    }
+  ]
+}
