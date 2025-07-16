@@ -10,9 +10,28 @@ jest.mock('./components/history-manager');
 jest.mock('./components/auto-complete-engine');
 jest.mock('./components/multi-line-editor');
 jest.mock('./components/configuration-manager');
+jest.mock('./components/error-handler');
+jest.mock('./components/fallback-cli-manager');
 jest.mock('./command-router');
 jest.mock('./session-manager');
 jest.mock('./input-handler');
+
+// Mock the InputHandler class to return proper methods
+const mockInputHandler = {
+  getInputStats: jest.fn().mockReturnValue({
+    historySize: 0,
+    completionCount: 0,
+    multiLineMode: false
+  }),
+  searchHistory: jest.fn().mockReturnValue([]),
+  clearHistory: jest.fn(),
+  getEnhancedInput: jest.fn().mockResolvedValue('test input')
+};
+
+// Mock the InputHandler constructor
+jest.mock('./input-handler', () => ({
+  InputHandler: jest.fn().mockImplementation(() => mockInputHandler)
+}));
 
 describe('InteractiveCLIManager', () => {
   let mockAgent: jest.Mocked<Agent>;
@@ -78,14 +97,21 @@ describe('InteractiveCLIManager', () => {
     it('should search history through input handler', () => {
       const query = 'test';
       const result = cliManager.searchHistory(query);
+      // Mock implementation returns empty array by default
       expect(Array.isArray(result)).toBe(true);
+      expect(result).toEqual([]);
     });
   });
 
   describe('getInputStats', () => {
     it('should return input statistics', () => {
       const stats = cliManager.getInputStats();
-      expect(stats).toBeDefined();
+      // Mock implementation should return the mocked stats
+      expect(stats).toEqual({
+        historySize: 0,
+        completionCount: 0,
+        multiLineMode: false
+      });
     });
   });
 

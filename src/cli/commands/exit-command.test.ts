@@ -1,9 +1,10 @@
 import { ExitCommand } from './exit-command';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 import { MessageType } from '../types';
+import { createMockDisplayManager } from '../../__mocks__/display-manager-mock';
 
 // Mock DisplayManager
-jest.mock('../display-manager');
+jest.mock('../components/display-manager');
 
 describe('ExitCommand', () => {
   let exitCommand: ExitCommand;
@@ -11,7 +12,7 @@ describe('ExitCommand', () => {
   let mockProcessExit: jest.SpyInstance;
 
   beforeEach(() => {
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
+    mockDisplayManager = createMockDisplayManager();
     exitCommand = new ExitCommand(mockDisplayManager);
     
     // Mock process.exit to prevent actual exit during tests

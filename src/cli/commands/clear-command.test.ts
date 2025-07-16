@@ -1,15 +1,16 @@
 import { ClearCommand } from './clear-command';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
+import { createMockDisplayManager } from '../../__mocks__/display-manager-mock';
 
 // Mock DisplayManager
-jest.mock('../display-manager');
+jest.mock('../components/display-manager');
 
 describe('ClearCommand', () => {
   let clearCommand: ClearCommand;
   let mockDisplayManager: jest.Mocked<DisplayManager>;
 
   beforeEach(() => {
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
+    mockDisplayManager = createMockDisplayManager();
     clearCommand = new ClearCommand(mockDisplayManager);
   });
 

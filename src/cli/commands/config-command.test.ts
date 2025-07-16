@@ -1,10 +1,12 @@
 import { ConfigCommand } from './config-command';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 import { SessionManager } from '../session-manager';
 import { MessageType, InteractiveCLIConfig } from '../types';
+import { createMockDisplayManager } from '../../__mocks__/display-manager-mock';
+import { createMockSessionManager } from '../../__mocks__/session-manager-mock';
 
 // Mock dependencies
-jest.mock('../display-manager');
+jest.mock('../components/display-manager');
 jest.mock('../session-manager');
 
 describe('ConfigCommand', () => {
@@ -13,8 +15,8 @@ describe('ConfigCommand', () => {
   let mockSessionManager: jest.Mocked<SessionManager>;
 
   beforeEach(() => {
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
-    mockSessionManager = new SessionManager({} as any) as jest.Mocked<SessionManager>;
+    mockDisplayManager = createMockDisplayManager();
+    mockSessionManager = createMockSessionManager();
     configCommand = new ConfigCommand(mockDisplayManager, mockSessionManager);
   });
 

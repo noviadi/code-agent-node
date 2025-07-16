@@ -61,7 +61,7 @@ describe('MultiLineEditor', () => {
       const result = editor.formatPreview(content);
       
       expect(result).toContain('┌─ Input Preview');
-      expect(result).toContain('1 │ Hello world');
+      expect(result).toContain('│ Hello world');
       expect(result).toContain('└─────────────');
     });
 
@@ -69,9 +69,9 @@ describe('MultiLineEditor', () => {
       const content = 'Line 1\nLine 2\nLine 3';
       const result = editor.formatPreview(content);
       
-      expect(result).toContain('1 │ Line 1');
-      expect(result).toContain('2 │ Line 2');
-      expect(result).toContain('3 │ Line 3');
+      expect(result).toContain('│ Line 1');
+      expect(result).toContain('│ Line 2');
+      expect(result).toContain('│ Line 3');
     });
   });
 

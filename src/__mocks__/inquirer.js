@@ -1,9 +1,9 @@
 // Mock inquirer for Jest testing
 const mockInquirer = {
-  prompt: () => Promise.resolve({ input: 'test input' }),
-  createPromptModule: () => mockInquirer.prompt,
-  registerPrompt: () => {},
-  Separator: function() { return '---'; }
+  prompt: jest.fn(() => Promise.resolve({ input: 'test input' })),
+  createPromptModule: jest.fn(() => mockInquirer.prompt),
+  registerPrompt: jest.fn(),
+  Separator: jest.fn(() => '---')
 };
 
 module.exports = mockInquirer;

@@ -1,26 +1,8 @@
 import hljs from 'highlight.js';
 import { MessageType } from '../types';
 
-// Import chalk properly for both runtime and tests
-let chalk: any;
-try {
-  chalk = require('chalk');
-} catch {
-  // Fallback for testing environments
-  chalk = {
-    cyan: { bold: (text: string) => text },
-    gray: (text: string) => text,
-    hex: () => (text: string) => text,
-    red: Object.assign((text: string) => text, { bold: (text: string) => text }),
-    yellow: Object.assign((text: string) => text, { bold: (text: string) => text }),
-    green: (text: string) => text,
-    magenta: (text: string) => text,
-    blue: (text: string) => text,
-    bgGray: { white: (text: string) => text },
-    bgRed: { white: (text: string) => text },
-    bgYellow: { black: (text: string) => text }
-  };
-}
+// Use require for chalk to ensure compatibility with CommonJS compilation
+const chalk = require('chalk');
 
 /**
  * Options for input formatting and preview

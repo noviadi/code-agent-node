@@ -1,4 +1,4 @@
-import * as storage from 'node-persist';
+import storage from 'node-persist';
 import * as path from 'path';
 import * as os from 'os';
 import { HistoryEntry } from '../types';

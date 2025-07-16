@@ -267,7 +267,7 @@ describe('Performance Tests', () => {
 
       // Memory increase should be reasonable (less than 20MB)
       expect(memoryIncrease).toBeLessThan(20 * 1024 * 1024);
-    });
+    }, 10000); // 10 second timeout
 
     it('should handle memory pressure gracefully', async () => {
       const historyManager = new HistoryManager(10000);

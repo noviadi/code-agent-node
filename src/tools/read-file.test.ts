@@ -6,7 +6,7 @@ jest.mock('fs/promises', () => ({
   readFile: jest.fn(),
 }));
 
-const mockFsReadFile = fsReadFile as jest.Mock;
+const mockFsReadFile = jest.mocked(fsReadFile);
 
 describe('readFile tool', () => {
   beforeEach(() => {

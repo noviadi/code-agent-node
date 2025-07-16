@@ -2,7 +2,7 @@ import { ThemeEngine } from './theme-engine';
 import { ProgressManager } from './progress-manager';
 import { MessageType, DisplayOptions, ProgressIndicator } from '../types';
 
-// Use require for chalk to avoid ES module issues in Jest
+// Use require for chalk to ensure compatibility with CommonJS compilation
 const chalk = require('chalk');
 
 /**

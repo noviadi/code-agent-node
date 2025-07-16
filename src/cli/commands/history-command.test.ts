@@ -1,10 +1,11 @@
 import { HistoryCommand } from './history-command';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 import { HistoryManager } from '../components/history-manager';
 import { MessageType, HistoryEntry } from '../types';
+import { createMockDisplayManager } from '../../__mocks__/display-manager-mock';
 
 // Mock dependencies
-jest.mock('../display-manager');
+jest.mock('../components/display-manager');
 jest.mock('../components/history-manager');
 
 describe('HistoryCommand', () => {
@@ -13,8 +14,10 @@ describe('HistoryCommand', () => {
   let mockHistoryManager: jest.Mocked<HistoryManager>;
 
   beforeEach(() => {
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
-    mockHistoryManager = new HistoryManager() as jest.Mocked<HistoryManager>;
+    mockDisplayManager = createMockDisplayManager();
+    mockHistoryManager = {
+      getRecent: jest.fn()
+    } as any;
     historyCommand = new HistoryCommand(mockDisplayManager, mockHistoryManager);
   });
 

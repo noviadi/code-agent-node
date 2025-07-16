@@ -1,9 +1,10 @@
 import { HelpCommand } from './help-command';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 import { MessageType, SpecialCommand } from '../types';
+import { createMockDisplayManager } from '../../__mocks__/display-manager-mock';
 
 // Mock DisplayManager
-jest.mock('../display-manager');
+jest.mock('../components/display-manager');
 
 describe('HelpCommand', () => {
   let helpCommand: HelpCommand;
@@ -11,7 +12,7 @@ describe('HelpCommand', () => {
   let mockGetAvailableCommands: jest.Mock;
 
   beforeEach(() => {
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
+    mockDisplayManager = createMockDisplayManager();
     mockGetAvailableCommands = jest.fn();
     helpCommand = new HelpCommand(mockDisplayManager, mockGetAvailableCommands);
   });

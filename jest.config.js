@@ -1,7 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
+  testMatch: ['<rootDir>/src/**/*.(spec|test).[jt]s?(x)'],
   moduleNameMapper: {
     '^chalk$': '<rootDir>/src/__mocks__/chalk.js',
     '^ora$': '<rootDir>/src/__mocks__/ora.js',

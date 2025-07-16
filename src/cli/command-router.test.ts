@@ -1,13 +1,15 @@
 import { CommandRouter } from './command-router';
 import { Agent } from '../agent';
-import { DisplayManager } from './display-manager';
+import { DisplayManager } from './components/display-manager';
 import { SessionManager } from './session-manager';
 import { HistoryManager } from './components/history-manager';
 import { MessageType, SpecialCommand } from './types';
+import { createMockDisplayManager } from '../__mocks__/display-manager-mock';
+import { createMockSessionManager } from '../__mocks__/session-manager-mock';
 
 // Mock all dependencies
 jest.mock('../agent');
-jest.mock('./display-manager');
+jest.mock('./components/display-manager');
 jest.mock('./session-manager');
 jest.mock('./components/history-manager');
 
@@ -25,22 +27,8 @@ describe('CommandRouter', () => {
       getConversationHistory: jest.fn()
     } as any;
     
-    mockDisplayManager = {
-      displayMessage: jest.fn(),
-      clearScreen: jest.fn(),
-      showProgress: jest.fn(),
-      displayWelcome: jest.fn(),
-      formatToolUsage: jest.fn()
-    } as any;
-    
-    mockSessionManager = {
-      getConfig: jest.fn(),
-      saveConversation: jest.fn(),
-      loadConversation: jest.fn(),
-      listConversations: jest.fn(),
-      exportConversation: jest.fn(),
-      updateConfig: jest.fn()
-    } as any;
+    mockDisplayManager = createMockDisplayManager();
+    mockSessionManager = createMockSessionManager();
     
     mockHistoryManager = {
       add: jest.fn(),

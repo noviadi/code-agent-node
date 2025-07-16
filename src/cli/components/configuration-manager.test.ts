@@ -10,8 +10,8 @@ jest.mock('os');
 
 describe('ConfigurationManager', () => {
   let configManager: ConfigurationManager;
-  const mockFs = fs as jest.Mocked<typeof fs>;
-  const mockOs = os as jest.Mocked<typeof os>;
+  const mockFs = jest.mocked(fs);
+  const mockOs = jest.mocked(os);
 
   beforeEach(() => {
     // Clear all mocks

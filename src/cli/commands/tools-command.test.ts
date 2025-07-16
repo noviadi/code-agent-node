@@ -1,11 +1,12 @@
 import { ToolsCommand } from './tools-command';
-import { DisplayManager } from '../display-manager';
+import { DisplayManager } from '../components/display-manager';
 import { Agent } from '../../agent';
 import { MessageType } from '../types';
 import { Tool } from '../../tools';
+import { createMockDisplayManager } from '../../__mocks__/display-manager-mock';
 
 // Mock dependencies
-jest.mock('../display-manager');
+jest.mock('../components/display-manager');
 jest.mock('../../agent');
 
 describe('ToolsCommand', () => {
@@ -14,8 +15,10 @@ describe('ToolsCommand', () => {
   let mockAgent: jest.Mocked<Agent>;
 
   beforeEach(() => {
-    mockDisplayManager = new DisplayManager({} as any) as jest.Mocked<DisplayManager>;
-    mockAgent = new Agent(jest.fn(), jest.fn()) as jest.Mocked<Agent>;
+    mockDisplayManager = createMockDisplayManager();
+    mockAgent = {
+      getAvailableTools: jest.fn()
+    } as any;
     toolsCommand = new ToolsCommand(mockDisplayManager, mockAgent);
   });
 

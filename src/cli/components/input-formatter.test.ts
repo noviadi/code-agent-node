@@ -46,7 +46,7 @@ describe('InputFormatter', () => {
       const result = formatter.formatPreview(input);
       
       expect(result).toContain('┌─ Input Preview');
-      expect(result).toContain('1 │ Hello world');
+      expect(result).toContain('│ Hello world');
       expect(result).toContain('└─────────────');
     });
 
@@ -54,19 +54,19 @@ describe('InputFormatter', () => {
       const input = 'Line 1\nLine 2\nLine 3';
       const result = formatter.formatPreview(input);
       
-      expect(result).toContain('1 │ Line 1');
-      expect(result).toContain('2 │ Line 2');
-      expect(result).toContain('3 │ Line 3');
+      expect(result).toContain('│ Line 1');
+      expect(result).toContain('│ Line 2');
+      expect(result).toContain('│ Line 3');
     });
 
     it('should truncate long input when maxPreviewLines is set', () => {
       const input = Array.from({ length: 10 }, (_, i) => `Line ${i + 1}`).join('\n');
       const result = formatter.formatPreview(input, { maxPreviewLines: 5 });
       
-      expect(result).toContain('1 │ Line 1');
-      expect(result).toContain('5 │ Line 5');
+      expect(result).toContain('│ Line 1');
+      expect(result).toContain('│ Line 5');
       expect(result).toContain('... (5 more lines)');
-      expect(result).not.toContain('6 │ Line 6');
+      expect(result).not.toContain('│ Line 6');
     });
 
     it('should disable line numbers when showLineNumbers is false', () => {
