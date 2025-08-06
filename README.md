@@ -50,3 +50,8 @@ To run unit tests:
 
 ```bash
 npm test
+```
+
+## Credit
+
+This repo is the TypeScript implementation of [How to Build an Agent](https://ampcode.com/how-to-build-an-agent) by [Amp](https://ampcode.com).
