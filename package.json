@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
+    "ai": "^5.0.4",
     "dotenv": "^17.2.0",
     "zod": "^4.0.5"
   }
