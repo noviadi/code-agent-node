@@ -1,4 +1,3 @@
-import { Tool } from '../tools';
 import { z } from 'zod';
 import { readdir } from 'fs/promises';
 
@@ -6,13 +5,11 @@ const listFileInputSchema = z.object({
     path: z.string().optional().describe('Optional relative path to list files from. Defaults to current directory if not provided.')
 });
 
-export const listFiles: Tool<typeof listFileInputSchema> = {
-    name: 'list_files',
+export const listFilesAi = {
     description: 'List files and directories at a given path. If no path is provided, lists files in the current directory.',
-    input_schema: listFileInputSchema,
-    execute: async (input) => {
-        const { path: inputPath = '.' } = input;
-
+    inputSchema: listFileInputSchema,
+    execute: async (input: any) => {
+        const { path: inputPath = '.' } = input as { path?: string };
         try {
             let result: string[] = [];
 
@@ -32,4 +29,4 @@ export const listFiles: Tool<typeof listFileInputSchema> = {
             return `Error listing files: ${error.message}`;
         }
     }
-}
+};
