@@ -1,6 +1,14 @@
 # Code Agent Node
 
-A Node.js-based agent application powered by Anthropic, featuring a modular architecture with dependency injection and a robust tool system.
+A Node.js-based agent application powered by Claude via the Vercel AI SDK. Showcasing that core AI agent functionality can be implemented as simply as possible.
+
+### Current Implementation:
+- agent.ts: 109 lines
+- index.ts: 39 lines
+- read-file.ts: 42 lines
+- list-files.ts: 32 lines
+- edit-file.ts: 57 lines
+- Total: 279 lines
 
 ## Setup
 
@@ -31,7 +39,7 @@ Prompt your agent:
 
 ```bash
 You: Create fizzbuzz.js with fizzbuzz implementation that can be run using NodeJS
-Clause: <magic>
+Claude: <magic>
 ```
 
 Type `exit` to quit the agent.

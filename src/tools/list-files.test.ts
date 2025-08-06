@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { listFiles } from './list-files';
 import { listFilesAi } from './list-files';
 import { readdir } from 'fs/promises';
 
@@ -16,19 +15,25 @@ function makeDirent(name: string, isDir: boolean) {
   } as unknown as import('fs').Dirent;
 }
 
-describe('listFiles tool', () => {
+describe('listFilesAi tool', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('legacy Tool interface', () => {
+  describe('Vercel AI SDK tool interface', () => {
+    it('should expose required properties for AI SDK registration', () => {
+      expect(listFilesAi.description).toBeDefined();
+      expect(listFilesAi.inputSchema).toBeDefined();
+      expect(typeof listFilesAi.execute).toBe('function');
+    });
+
     it('lists files and directories in current directory when no path provided', async () => {
       (mockReaddir as any).mockResolvedValueOnce([
         makeDirent('src', true),
         makeDirent('package.json', false),
       ]);
 
-      const result = await listFiles.execute({});
+      const result = await listFilesAi.execute({});
 
       expect(mockReaddir).toHaveBeenCalledWith('.', { withFileTypes: true });
       expect(result.split('\n')).toEqual(['src/', 'package.json']);
@@ -40,7 +45,7 @@ describe('listFiles tool', () => {
         makeDirent('readme.md', false),
       ]);
 
-      const result = await listFiles.execute({ path: 'docs' });
+      const result = await listFilesAi.execute({ path: 'docs' });
 
       expect(mockReaddir).toHaveBeenCalledWith('docs', { withFileTypes: true });
       expect(result.split('\n')).toEqual(['tools/', 'readme.md']);
@@ -51,7 +56,7 @@ describe('listFiles tool', () => {
       err.code = 'ENOENT';
       (mockReaddir as any).mockRejectedValueOnce(err);
 
-      const result = await listFiles.execute({ path: 'missing' });
+      const result = await listFilesAi.execute({ path: 'missing' });
 
       expect(mockReaddir).toHaveBeenCalledWith('missing', { withFileTypes: true });
       expect(result).toBe('Error: Path not found - missing');
@@ -61,60 +66,7 @@ describe('listFiles tool', () => {
       const err = new Error('Permission denied');
       (mockReaddir as any).mockRejectedValueOnce(err);
 
-      const result = await listFiles.execute({ path: 'protected' });
-
-      expect(mockReaddir).toHaveBeenCalledWith('protected', { withFileTypes: true });
-      expect(result).toBe('Error listing files: Permission denied');
-    });
-  });
-
-  describe('AI SDK tool interface', () => {
-    it('should expose name and schema for AI SDK registration', () => {
-      expect((listFilesAi as any).name).toBe('list_files');
-      expect((listFilesAi as any).inputSchema).toBeDefined();
-      expect(typeof (listFilesAi as any).execute).toBe('function');
-    });
-
-    it('lists files and directories in current directory when no path provided', async () => {
-      (mockReaddir as any).mockResolvedValueOnce([
-        makeDirent('src', true),
-        makeDirent('package.json', false),
-      ]);
-
-      const result = await (listFilesAi as any).execute({});
-
-      expect(mockReaddir).toHaveBeenCalledWith('.', { withFileTypes: true });
-      expect(result.split('\n')).toEqual(['src/', 'package.json']);
-    });
-
-    it('lists files and directories for a provided path', async () => {
-      (mockReaddir as any).mockResolvedValueOnce([
-        makeDirent('tools', true),
-        makeDirent('readme.md', false),
-      ]);
-
-      const result = await (listFilesAi as any).execute({ path: 'docs' });
-
-      expect(mockReaddir).toHaveBeenCalledWith('docs', { withFileTypes: true });
-      expect(result.split('\n')).toEqual(['tools/', 'readme.md']);
-    });
-
-    it('returns not found error for ENOENT', async () => {
-      const err: any = new Error('Not found');
-      err.code = 'ENOENT';
-      (mockReaddir as any).mockRejectedValueOnce(err);
-
-      const result = await (listFilesAi as any).execute({ path: 'missing' });
-
-      expect(mockReaddir).toHaveBeenCalledWith('missing', { withFileTypes: true });
-      expect(result).toBe('Error: Path not found - missing');
-    });
-
-    it('returns generic error for other fs errors', async () => {
-      const err = new Error('Permission denied');
-      (mockReaddir as any).mockRejectedValueOnce(err);
-
-      const result = await (listFilesAi as any).execute({ path: 'protected' });
+      const result = await listFilesAi.execute({ path: 'protected' });
 
       expect(mockReaddir).toHaveBeenCalledWith('protected', { withFileTypes: true });
       expect(result).toBe('Error listing files: Permission denied');
