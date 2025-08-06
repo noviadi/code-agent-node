@@ -1,12 +1,13 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { listFiles } from './list-files';
 import { listFilesAi } from './list-files';
 import { readdir } from 'fs/promises';
 
-jest.mock('fs/promises', () => ({
-  readdir: jest.fn(),
+vi.mock('fs/promises', () => ({
+  readdir: vi.fn(),
 }));
 
-const mockReaddir = readdir as unknown as jest.Mock;
+const mockReaddir = readdir as unknown as ReturnType<typeof vi.fn>;
 
 function makeDirent(name: string, isDir: boolean) {
   return {
@@ -17,12 +18,12 @@ function makeDirent(name: string, isDir: boolean) {
 
 describe('listFiles tool', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('legacy Tool interface', () => {
     it('lists files and directories in current directory when no path provided', async () => {
-      mockReaddir.mockResolvedValueOnce([
+      (mockReaddir as any).mockResolvedValueOnce([
         makeDirent('src', true),
         makeDirent('package.json', false),
       ]);
@@ -34,7 +35,7 @@ describe('listFiles tool', () => {
     });
 
     it('lists files and directories for a provided path', async () => {
-      mockReaddir.mockResolvedValueOnce([
+      (mockReaddir as any).mockResolvedValueOnce([
         makeDirent('tools', true),
         makeDirent('readme.md', false),
       ]);
@@ -48,7 +49,7 @@ describe('listFiles tool', () => {
     it('returns not found error for ENOENT', async () => {
       const err: any = new Error('Not found');
       err.code = 'ENOENT';
-      mockReaddir.mockRejectedValueOnce(err);
+      (mockReaddir as any).mockRejectedValueOnce(err);
 
       const result = await listFiles.execute({ path: 'missing' });
 
@@ -58,7 +59,7 @@ describe('listFiles tool', () => {
 
     it('returns generic error for other fs errors', async () => {
       const err = new Error('Permission denied');
-      mockReaddir.mockRejectedValueOnce(err);
+      (mockReaddir as any).mockRejectedValueOnce(err);
 
       const result = await listFiles.execute({ path: 'protected' });
 
@@ -75,7 +76,7 @@ describe('listFiles tool', () => {
     });
 
     it('lists files and directories in current directory when no path provided', async () => {
-      mockReaddir.mockResolvedValueOnce([
+      (mockReaddir as any).mockResolvedValueOnce([
         makeDirent('src', true),
         makeDirent('package.json', false),
       ]);
@@ -87,7 +88,7 @@ describe('listFiles tool', () => {
     });
 
     it('lists files and directories for a provided path', async () => {
-      mockReaddir.mockResolvedValueOnce([
+      (mockReaddir as any).mockResolvedValueOnce([
         makeDirent('tools', true),
         makeDirent('readme.md', false),
       ]);
@@ -101,7 +102,7 @@ describe('listFiles tool', () => {
     it('returns not found error for ENOENT', async () => {
       const err: any = new Error('Not found');
       err.code = 'ENOENT';
-      mockReaddir.mockRejectedValueOnce(err);
+      (mockReaddir as any).mockRejectedValueOnce(err);
 
       const result = await (listFilesAi as any).execute({ path: 'missing' });
 
@@ -111,7 +112,7 @@ describe('listFiles tool', () => {
 
     it('returns generic error for other fs errors', async () => {
       const err = new Error('Permission denied');
-      mockReaddir.mockRejectedValueOnce(err);
+      (mockReaddir as any).mockRejectedValueOnce(err);
 
       const result = await (listFilesAi as any).execute({ path: 'protected' });
 

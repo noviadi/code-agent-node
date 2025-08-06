@@ -5,6 +5,10 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "esModuleInterop": true,
-    "strict": true
-  }
+    "strict": true,
+    "types": ["vitest/globals"]
+  },
+  "exclude": [
+    "vitest.config.ts"
+  ]
 }

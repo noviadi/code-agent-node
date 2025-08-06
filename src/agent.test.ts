@@ -1,33 +1,28 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Agent } from './agent';
-import Anthropic from '@anthropic-ai/sdk';
 import { Tool } from './tools';
 import { z } from 'zod';
 
-// Mock the Anthropic SDK
-let mockMessagesCreate: jest.Mock;
+const createMock = vi.fn();
 
-jest.mock('@anthropic-ai/sdk', () => {
-  return jest.fn().mockImplementation(() => {
-    mockMessagesCreate = jest.fn(); // Capture the mock here
-    return {
-      messages: {
-        create: mockMessagesCreate,
-      },
-    };
-  });
-});
-
-const MockAnthropic = Anthropic as jest.MockedClass<typeof Anthropic>;
+vi.mock('@anthropic-ai/sdk', () => ({
+  default: vi.fn(() => ({
+    messages: {
+      create: createMock,
+    },
+  })),
+}));
 
 describe('Agent', () => {
-  let mockGetUserInput: jest.Mock;
-  let mockHandleResponse: jest.Mock;
+  let mockGetUserInput: ReturnType<typeof vi.fn>;
+  let mockHandleResponse: ReturnType<typeof vi.fn>;
   let mockTool: Tool;
   let agent: Agent;
 
   beforeEach(() => {
-    mockGetUserInput = jest.fn();
-    mockHandleResponse = jest.fn();
+    vi.clearAllMocks();
+    mockGetUserInput = vi.fn();
+    mockHandleResponse = vi.fn();
     const testToolInputSchema = z.object({
       query: z.string(),
     });
@@ -36,31 +31,31 @@ describe('Agent', () => {
       name: 'test_tool',
       description: 'A tool for testing',
       input_schema: testToolInputSchema,
-      execute: jest.fn(async (input: unknown) => {
+      execute: vi.fn(async (input: unknown) => {
         const parsedInput = testToolInputSchema.parse(input);
         return `Tool result for ${parsedInput.query}`;
       }),
     };
 
     agent = new Agent(mockGetUserInput, mockHandleResponse, [mockTool]);
+  });
 
-    // Reset mocks after agent is instantiated
-    MockAnthropic.mockClear();
-    mockMessagesCreate.mockClear(); // Clear the captured mock
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should handle a simple text conversation', async () => {
     mockGetUserInput.mockResolvedValueOnce('Hello Claude').mockResolvedValueOnce('exit');
-    mockMessagesCreate.mockResolvedValueOnce({
+    createMock.mockResolvedValueOnce({
       content: [{ type: 'text', text: 'Hi there!' }],
-    });
+    } as any);
 
     await agent.start();
 
     expect(mockGetUserInput).toHaveBeenCalledTimes(2);
     expect(mockHandleResponse).toHaveBeenCalledWith('Hi there!');
-    expect(mockMessagesCreate).toHaveBeenCalledTimes(1);
-    expect(mockMessagesCreate).toHaveBeenCalledWith(
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: expect.arrayContaining([
           { role: 'user', content: 'Hello Claude' },
@@ -72,7 +67,7 @@ describe('Agent', () => {
 
   it('should handle a tool use scenario', async () => {
     mockGetUserInput.mockResolvedValueOnce('Use the tool').mockResolvedValueOnce('exit');
-    mockMessagesCreate
+    createMock
       .mockResolvedValueOnce({
         content: [{
           type: 'tool_use',
@@ -80,18 +75,18 @@ describe('Agent', () => {
           name: 'test_tool',
           input: { query: 'some data' },
         }],
-      })
+      } as any)
       .mockResolvedValueOnce({
         content: [{ type: 'text', text: 'Tool executed successfully.' }],
-      });
+      } as any);
 
     await agent.start();
 
     expect(mockGetUserInput).toHaveBeenCalledTimes(2);
     expect(mockTool.execute).toHaveBeenCalledWith({ query: 'some data' });
     expect(mockHandleResponse).toHaveBeenCalledWith('Tool executed successfully.');
-    expect(mockMessagesCreate).toHaveBeenCalledTimes(2);
-    expect(mockMessagesCreate).toHaveBeenCalledWith(
+    expect(createMock).toHaveBeenCalledTimes(2);
+    expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: expect.arrayContaining([
           { role: 'user', content: 'Use the tool' },
@@ -120,7 +115,7 @@ describe('Agent', () => {
   it('should handle tool not found error', async () => {
     agent = new Agent(mockGetUserInput, mockHandleResponse, []); // Agent with no tools
     mockGetUserInput.mockResolvedValueOnce('Use a non-existent tool').mockResolvedValueOnce('exit');
-    mockMessagesCreate
+    createMock
       .mockResolvedValueOnce({
         content: [{
           type: 'tool_use',
@@ -128,21 +123,21 @@ describe('Agent', () => {
           name: 'non_existent_tool',
           input: {},
         }],
-      })
+      } as any)
       .mockResolvedValueOnce({
         content: [{ type: 'text', text: 'Understood, tool not found.' }],
-      });
+      } as any);
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // Mock console.log to prevent "Chat with Claude" output
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await agent.start();
 
     expect(mockGetUserInput).toHaveBeenCalledTimes(2);
     expect(consoleErrorSpy).toHaveBeenCalledWith('Tool non_existent_tool not found.');
     expect(mockHandleResponse).toHaveBeenCalledWith('Understood, tool not found.');
-    expect(mockMessagesCreate).toHaveBeenCalledTimes(2);
-    expect(mockMessagesCreate).toHaveBeenCalledWith(
+    expect(createMock).toHaveBeenCalledTimes(2);
+    expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: expect.arrayContaining([
           { role: 'user', content: 'Use a non-existent tool' },
@@ -160,44 +155,44 @@ describe('Agent', () => {
             content: [{
               type: 'tool_result',
               tool_use_id: 'toolu_456',
-              content: 'Error: Tool non_existent_tool not found.', // Corrected expectation
+              content: 'Error: Tool non_existent_tool not found.',
             }],
           },
-          { role: 'assistant', content: [{ type: 'text', text: 'Understood, tool not found.' }] }, // Added this line
+          { role: 'assistant', content: [{ type: 'text', text: 'Understood, tool not found.' }] },
         ]),
       })
     );
     consoleErrorSpy.mockRestore();
-    consoleLogSpy.mockRestore(); // Restore console.log
+    consoleLogSpy.mockRestore();
   });
 
   it('should handle API errors gracefully', async () => {
     mockGetUserInput.mockResolvedValueOnce('Trigger error').mockResolvedValueOnce('exit');
     const apiError = new Error('Anthropic API error');
-    mockMessagesCreate.mockRejectedValueOnce(apiError);
+    createMock.mockRejectedValueOnce(apiError);
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // Mock console.log
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await agent.start();
 
     expect(mockGetUserInput).toHaveBeenCalledTimes(2);
     expect(consoleErrorSpy).toHaveBeenCalledWith('Error:', apiError);
-    expect(mockHandleResponse).not.toHaveBeenCalled(); // No response from agent if API errors
+    expect(mockHandleResponse).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
-    consoleLogSpy.mockRestore(); // Restore console.log
+    consoleLogSpy.mockRestore();
   });
 
   it('should log tool use when config.logToolUse is true', async () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation((...args) => {
-      // Strip ANSI escape codes for consistent testing
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation((...args: any[]) => {
       const strippedArgs = args.map(arg =>
         typeof arg === 'string' ? arg.replace(/\x1b\[[0-9;]*m/g, '') : arg
       );
-      consoleLogSpy.mock.calls.push(strippedArgs);
+      // push stripped args for assertions
+      (consoleLogSpy as any).mock.calls.push(strippedArgs);
     });
     mockGetUserInput.mockResolvedValueOnce('Hello Claude').mockResolvedValueOnce('exit');
-    mockMessagesCreate
+    createMock
       .mockResolvedValueOnce({
         content: [{
           type: 'tool_use',
@@ -205,10 +200,10 @@ describe('Agent', () => {
           name: 'test_tool',
           input: { query: 'some data' },
         }],
-      })
+      } as any)
       .mockResolvedValueOnce({
         content: [{ type: 'text', text: 'Tool executed successfully.' }],
-      });
+      } as any);
 
     await agent.start();
 
@@ -220,15 +215,14 @@ describe('Agent', () => {
 
   it('should not log tool use when config.logToolUse is false', async () => {
     agent = new Agent(mockGetUserInput, mockHandleResponse, [mockTool], { logToolUse: false });
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation((...args) => {
-      // Strip ANSI escape codes for consistent testing
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation((...args: any[]) => {
       const strippedArgs = args.map(arg =>
         typeof arg === 'string' ? arg.replace(/\x1b\[[0-9;]*m/g, '') : arg
       );
-      consoleLogSpy.mock.calls.push(strippedArgs);
+      (consoleLogSpy as any).mock.calls.push(strippedArgs);
     });
     mockGetUserInput.mockResolvedValueOnce('Use the tool').mockResolvedValueOnce('exit');
-    mockMessagesCreate
+    createMock
       .mockResolvedValueOnce({
         content: [{
           type: 'tool_use',
@@ -236,10 +230,10 @@ describe('Agent', () => {
           name: 'test_tool',
           input: { query: 'some data' },
         }],
-      })
+      } as any)
       .mockResolvedValueOnce({
         content: [{ type: 'text', text: 'Tool executed successfully.' }],
-      });
+      } as any);
 
     await agent.start();
 
