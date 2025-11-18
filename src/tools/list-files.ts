@@ -5,6 +5,7 @@ const listFileInputSchema = z.object({
     path: z.string().optional().describe('Optional relative path to list files from. Defaults to current directory if not provided.')
 });
 
+/** Tool that retrieves directory listings, formatting output to distinguish between files and subdirectories. */
 export const listFilesAi = {
     description: 'List files and directories at a given path. If no path is provided, lists files in the current directory.',
     inputSchema: listFileInputSchema,

@@ -8,10 +8,8 @@ const editFileInputSchema = z.object({
     new_str: z.string().describe('Text to replace old_str with')
 });
 
-/**
- * AI SDK tool export mirroring the legacy edit_file behavior.
- * Pattern based on Context7 Vercel AI SDK docs for server-side tools.
- */
+
+/** Tool that performs string replacement in files, handling file creation and directory structure generation if needed. */
 export const editFileAi = {
     description: `Make edit to a text file.
 
