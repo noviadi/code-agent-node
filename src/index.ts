@@ -7,6 +7,11 @@ import { editFileAi } from './tools/edit-file';
 
 dotenv.config();
 
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error('Error: ANTHROPIC_API_KEY environment variable is not set.');
+  process.exit(1);
+}
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
