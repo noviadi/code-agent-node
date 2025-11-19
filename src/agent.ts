@@ -24,46 +24,36 @@ export class Agent {
     this.config = config;
   }
 
-  async start(): Promise<void> {
-    const conversation: ModelMessage[] = [];
-    const systemPrompt = `You are an expert AI assistant integrated into a local development environment.
+  private readonly SYSTEM_PROMPT = `You are an expert AI assistant integrated into a local development environment.
 You have access to tools that can read, write, and list files on the user's machine.
 Analyze the user's request and use these tools whenever necessary to accomplish the task. Think step-by-step before acting.`;
+
+  async start(): Promise<void> {
+    const conversation: ModelMessage[] = [];
 
     console.log("Chat with Claude (type 'exit' to quit)");
 
     let readUserInput = true;
     while (true) {
-      if (readUserInput) {
-        const userInput = await this.getUserInput();
+      try {
+        if (readUserInput) {
+          const userInput = await this.getUserInput();
 
-        if (userInput.toLowerCase() === 'exit') {
-          break;
+          if (userInput.toLowerCase() === 'exit') {
+            break;
+          }
+
+          conversation.push({ role: 'user', content: userInput });
         }
 
-        conversation.push({ role: 'user', content: userInput });
-      }
-
-      try {
         const { text, toolCalls, toolResults, response } = await generateText({
           model: anthropic(this.config.model) as any,
-          system: systemPrompt,
+          system: this.SYSTEM_PROMPT,
           messages: conversation,
           tools: this.tools,
         });
 
-        if (this.config.logToolUse) {
-          if (toolCalls && toolCalls.length > 0) {
-            for (const toolCall of toolCalls) {
-              console.log(`\x1b[96mClaude is using tool:\x1b[0m ${toolCall.toolName} with input ${JSON.stringify(toolCall.input)}`);
-            }
-          }
-          if (toolResults && toolResults.length > 0) {
-            for (const toolResult of toolResults) {
-              console.log(`\x1b[96mTool result:\x1b[0m ${JSON.stringify(toolResult.output)}`);
-            }
-          }
-        }
+        this.logToolUsage(toolCalls, toolResults);
 
         // Add the response messages to the conversation history
         conversation.push(...response.messages);
@@ -76,34 +66,54 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
           readUserInput = false;
         } else {
           // No tools called, display the response and wait for new user input
-          if (text) {
-            await this.handleResponse(text);
-          } else {
-            // When tools are used, the response might be in response.messages instead of text
-            // Find the last assistant message and display its content
-            const assistantMessages = response.messages.filter(msg => msg.role === 'assistant');
-            if (assistantMessages.length > 0) {
-              const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-              if (typeof lastAssistantMessage.content === 'string') {
-                await this.handleResponse(lastAssistantMessage.content);
-              } else if (Array.isArray(lastAssistantMessage.content)) {
-                // Handle array content - extract text parts
-                const textParts = lastAssistantMessage.content
-                  .filter(part => part.type === 'text')
-                  .map(part => (part as any).text)
-                  .join('');
-                if (textParts) {
-                  await this.handleResponse(textParts);
-                }
-              }
-            }
-          }
+          await this.processResponse(text, response);
           readUserInput = true;
         }
 
       } catch (error) {
         console.error('Error:', error);
         readUserInput = true; // Allow user to try again after error
+      }
+    }
+  }
+
+  private logToolUsage(toolCalls: any[] | undefined, toolResults: any[] | undefined): void {
+    if (!this.config.logToolUse) return;
+
+    if (toolCalls && toolCalls.length > 0) {
+      for (const toolCall of toolCalls) {
+        console.log(`\x1b[96mClaude is using tool:\x1b[0m ${toolCall.toolName} with input ${JSON.stringify(toolCall.input)}`);
+      }
+    }
+    if (toolResults && toolResults.length > 0) {
+      for (const toolResult of toolResults) {
+        console.log(`\x1b[96mTool result:\x1b[0m ${JSON.stringify(toolResult.output)}`);
+      }
+    }
+  }
+
+  private async processResponse(text: string | undefined, response: any): Promise<void> {
+    if (text) {
+      await this.handleResponse(text);
+      return;
+    }
+
+    // When tools are used, the response might be in response.messages instead of text
+    // Find the last assistant message and display its content
+    const assistantMessages = response.messages.filter((msg: any) => msg.role === 'assistant');
+    if (assistantMessages.length > 0) {
+      const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+      if (typeof lastAssistantMessage.content === 'string') {
+        await this.handleResponse(lastAssistantMessage.content);
+      } else if (Array.isArray(lastAssistantMessage.content)) {
+        // Handle array content - extract text parts
+        const textParts = lastAssistantMessage.content
+          .filter((part: any) => part.type === 'text')
+          .map((part: any) => (part as any).text)
+          .join('');
+        if (textParts) {
+          await this.handleResponse(textParts);
+        }
       }
     }
   }
