@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { editFileAi } from './edit-file';
 import * as fs from 'fs/promises';
 
+import { NodeError } from '../types';
+
 vi.mock('fs/promises');
 
 describe('editFileAi', () => {
@@ -21,7 +23,7 @@ describe('editFileAi', () => {
         });
 
         it('should replace old_str with new_str in an existing file', async () => {
-            (mockReadFile as any).mockResolvedValueOnce('This is the old content.');
+            mockReadFile.mockResolvedValueOnce('This is the old content.');
             const input = { path: 'test.txt', old_str: 'old', new_str: 'new' };
             const result = await editFileAi.execute(input);
 
@@ -31,7 +33,9 @@ describe('editFileAi', () => {
         });
 
         it('should create a new file with new_str content if file does not exist', async () => {
-            (mockReadFile as any).mockRejectedValueOnce({ code: 'ENOENT' });
+            const error = new Error('File not found') as NodeError;
+            error.code = 'ENOENT';
+            mockReadFile.mockRejectedValueOnce(error);
             const input = { path: 'newfile.txt', old_str: 'old', new_str: 'new content' };
             const result = await editFileAi.execute(input);
 
@@ -41,7 +45,9 @@ describe('editFileAi', () => {
         });
 
         it('should create directories recursively if path points to a new file in a new directory', async () => {
-            (mockReadFile as any).mockRejectedValueOnce({ code: 'ENOENT' });
+            const error = new Error('File not found') as NodeError;
+            error.code = 'ENOENT';
+            mockReadFile.mockRejectedValueOnce(error);
             const input = { path: 'src/scripts/migration/db.ts', old_str: 'old', new_str: 'console.log("new db script");' };
             const result = await editFileAi.execute(input);
 
@@ -52,10 +58,12 @@ describe('editFileAi', () => {
         });
 
         it('should return an error string if directory creation fails', async () => {
-            (mockReadFile as any).mockRejectedValueOnce({ code: 'ENOENT' });
-            const mockError = new Error('Permission denied for directory');
-            (mockError as any).code = 'EACCES';
-            (mockMkdir as any).mockRejectedValueOnce(mockError);
+            const error = new Error('File not found') as NodeError;
+            error.code = 'ENOENT';
+            mockReadFile.mockRejectedValueOnce(error);
+            const mockError = new Error('Permission denied for directory') as NodeError;
+            mockError.code = 'EACCES';
+            mockMkdir.mockRejectedValueOnce(mockError);
 
             const input = { path: 'src/newdir/file.ts', old_str: 'old', new_str: 'content' };
             const result = await editFileAi.execute(input);
@@ -83,7 +91,7 @@ describe('editFileAi', () => {
         });
 
         it('should return an error string if old_str is not found in the file', async () => {
-            (mockReadFile as any).mockResolvedValueOnce('This is some content.');
+            mockReadFile.mockResolvedValueOnce('This is some content.');
             const input = { path: 'test.txt', old_str: 'nonexistent', new_str: 'new' };
             const result = await editFileAi.execute(input);
             expect(result).toBe("Error: 'nonexistent' not found in file test.txt.");
@@ -92,9 +100,9 @@ describe('editFileAi', () => {
         });
 
         it('should return an error string for other file system errors', async () => {
-            const mockError = new Error('Permission denied');
-            (mockError as any).code = 'EACCES';
-            (mockReadFile as any).mockRejectedValueOnce(mockError);
+            const mockError = new Error('Permission denied') as NodeError;
+            mockError.code = 'EACCES';
+            mockReadFile.mockRejectedValueOnce(mockError);
 
             const input = { path: 'test.txt', old_str: 'old', new_str: 'new' };
             const result = await editFileAi.execute(input);

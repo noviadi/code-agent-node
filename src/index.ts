@@ -28,16 +28,23 @@ const handleResponse = async (respond: string) => {
 }
 
 async function main() {
-  const tools = {
+  // Cast to any is required here because of a version mismatch between the 'zod' package used in this project
+  // and the 'zod' version used internally by the 'ai' SDK, causing deep type instantiation errors.
+  // The runtime behavior is correct and type-safe within the tools themselves.
+  const tools: {
+    read_file: typeof readFileAi;
+    list_files: typeof listFilesAi;
+    edit_file: typeof editFileAi;
+  } = {
     read_file: readFileAi,
     list_files: listFilesAi,
-    edit_file: editFileAi
-  };
+    edit_file: editFileAi,
+  } as any;
   const agentConfig: AgentConfig = {
     logToolUse: process.env.LOG_TOOL_USE !== 'false', // Enable tool use logging by default, disable if LOG_TOOL_USE=false
     model: process.env.MODEL || 'claude-sonnet-4-5-20250929',
   };
-  const agent = new Agent(getUserInput, handleResponse, tools, agentConfig);
+  const agent = new Agent(getUserInput, handleResponse, tools as any, agentConfig);
   await agent.start();
   rl.close();
 }

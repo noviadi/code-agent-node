@@ -5,12 +5,14 @@ const listFileInputSchema = z.object({
     path: z.string().optional().describe('Optional relative path to list files from. Defaults to current directory if not provided.')
 });
 
+import { NodeError } from '../types';
+
 /** Tool that retrieves directory listings, formatting output to distinguish between files and subdirectories. */
 export const listFilesAi = {
     description: 'List files and directories at a given path. If no path is provided, lists files in the current directory.',
     inputSchema: listFileInputSchema,
-    execute: async (input: any) => {
-        const { path: inputPath = '.' } = input as { path?: string };
+    execute: async (input: z.infer<typeof listFileInputSchema>) => {
+        const { path: inputPath = '.' } = input;
         try {
             let result: string[] = [];
 
@@ -23,11 +25,12 @@ export const listFilesAi = {
                 }
             }
             return result.join('\n');
-        } catch (error: any) {
-            if (error.code === 'ENOENT') {
+        } catch (error: unknown) {
+            const nodeError = error as NodeError;
+            if (nodeError.code === 'ENOENT') {
                 return `Error: Path not found - ${inputPath}`;
             }
-            return `Error listing files: ${error.message}`;
+            return `Error listing files: ${nodeError.message}`;
         }
     }
 };

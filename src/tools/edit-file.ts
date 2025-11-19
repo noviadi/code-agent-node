@@ -9,6 +9,8 @@ const editFileInputSchema = z.object({
 });
 
 
+import { NodeError } from '../types';
+
 /** Tool that performs string replacement in files, handling file creation and directory structure generation if needed. */
 export const editFileAi = {
     description: `Make edit to a text file.
@@ -18,8 +20,8 @@ Replace 'old_str' with 'new_str' in the given file. 'old_str' and 'new_str' MUST
 If the file specified with path does not exist, it will be created.
     `,
     inputSchema: editFileInputSchema,
-    execute: async (input: any) => {
-        const { path: filePath, old_str, new_str } = input as { path: string; old_str: string; new_str: string };
+    execute: async (input: z.infer<typeof editFileInputSchema>) => {
+        const { path: filePath, old_str, new_str } = input;
         if (!filePath || old_str === new_str) {
             return 'Error: Invalid input parameters. Path cannot be empty, and old_str must be different from new_str.';
         }
@@ -27,20 +29,22 @@ If the file specified with path does not exist, it will be created.
         let oldContent = '';
         try {
             oldContent = await fs.readFile(filePath, 'utf-8');
-        } catch (error: any) {
-            if (error.code === 'ENOENT') {
+        } catch (error: unknown) {
+            const nodeError = error as NodeError;
+            if (nodeError.code === 'ENOENT') {
                 const dirName = path.dirname(filePath);
                 if (dirName !== '.') {
                     try {
                         await fs.mkdir(dirName, { recursive: true });
-                    } catch (mkdirError: any) {
-                        return `Error: Failed to create directory ${dirName}. ${mkdirError.message}`;
+                    } catch (mkdirError: unknown) {
+                        const nodeMkdirError = mkdirError as NodeError;
+                        return `Error: Failed to create directory ${dirName}. ${nodeMkdirError.message}`;
                     }
                 }
                 await fs.writeFile(filePath, new_str, 'utf-8');
                 return `File created: ${filePath}`;
             }
-            return `Error: Failed to read file ${filePath}. ${error.message}`;
+            return `Error: Failed to read file ${filePath}. ${nodeError.message}`;
         }
 
         const newContent = oldContent.replace(old_str, new_str);

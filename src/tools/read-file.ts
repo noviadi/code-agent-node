@@ -6,20 +6,23 @@ const readFileInputSchema = z.object({
 });
 
 
+import { NodeError } from '../types';
+
 /** Tool that safely reads file contents, providing formatted output and specific error handling for missing files. */
 export const readFileAi = {
     description: 'Read the contents of a given relative file path. Use this when you want to see what\'s inside a file. Do not use this with directory names.',
     inputSchema: readFileInputSchema,
-    execute: async (input: any) => {
-        const { path } = input as { path: string };
+    execute: async (input: z.infer<typeof readFileInputSchema>) => {
+        const { path } = input;
         try {
             const content = await fsReadFile(path, 'utf-8');
             return `File content of ${path}:\n\`\`\`\n${content}\n\`\`\``;
-        } catch (error: any) {
-            if (error.code === 'ENOENT') {
+        } catch (error: unknown) {
+            const nodeError = error as NodeError;
+            if (nodeError.code === 'ENOENT') {
                 return `Error: File not found at path "${path}"`;
             }
-            return `Error reading file "${path}": ${error.message}`;
+            return `Error reading file "${path}": ${nodeError.message}`;
         }
     }
 };

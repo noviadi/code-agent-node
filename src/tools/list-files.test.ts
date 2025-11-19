@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { listFilesAi } from './list-files';
 import { readdir } from 'fs/promises';
+import { NodeError } from '../types';
 
 vi.mock('fs/promises', () => ({
   readdir: vi.fn(),
@@ -12,7 +13,7 @@ function makeDirent(name: string, isDir: boolean) {
   return {
     name,
     isDirectory: () => isDir,
-  } as unknown as import('fs').Dirent;
+  } as unknown as import('fs').Dirent; // Corrected type to Dirent
 }
 
 describe('listFilesAi tool', () => {
@@ -26,7 +27,9 @@ describe('listFilesAi tool', () => {
       expect(listFilesAi.inputSchema).toBeDefined();
       expect(typeof listFilesAi.execute).toBe('function');
     });
+  });
 
+  describe('execute', () => { // Grouped execute tests
     it('lists files and directories in current directory when no path provided', async () => {
       (mockReaddir as any).mockResolvedValueOnce([
         makeDirent('src', true),
@@ -51,10 +54,10 @@ describe('listFilesAi tool', () => {
       expect(result.split('\n')).toEqual(['tools/', 'readme.md']);
     });
 
-    it('returns not found error for ENOENT', async () => {
-      const err: any = new Error('Not found');
+    it('should return error message if path does not exist', async () => { // Updated test description
+      const err = new Error('ENOENT: no such file or directory') as NodeError; // Used NodeError
       err.code = 'ENOENT';
-      (mockReaddir as any).mockRejectedValueOnce(err);
+      vi.mocked(readdir).mockRejectedValue(err);
 
       const result = await listFilesAi.execute({ path: 'missing' });
 
@@ -62,7 +65,7 @@ describe('listFilesAi tool', () => {
       expect(result).toBe('Error: Path not found - missing');
     });
 
-    it('returns generic error for other fs errors', async () => {
+    it('should return generic error message for other errors', async () => { // Updated test description
       const err = new Error('Permission denied');
       (mockReaddir as any).mockRejectedValueOnce(err);
 

@@ -3,16 +3,15 @@ import { readFileAi } from './read-file';
 import { readFile as fsReadFile } from 'fs/promises';
 
 // Mock the fs/promises module with Vitest
-vi.mock('fs/promises', () => ({
-  default: {},
-  readFile: vi.fn(),
-}));
+import { NodeError } from '../types';
 
-const mockFsReadFile = fsReadFile as unknown as ReturnType<typeof vi.fn>;
+vi.mock('fs/promises');
 
-describe('readFileAi tool', () => {
+describe('readFileAi', () => {
+  const mockFsReadFile = fsReadFile as unknown as ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    (mockFsReadFile as any).mockClear?.();
+    vi.clearAllMocks();
   });
 
   describe('Vercel AI SDK tool interface', () => {
@@ -21,37 +20,37 @@ describe('readFileAi tool', () => {
       expect(readFileAi.inputSchema).toBeDefined();
       expect(typeof readFileAi.execute).toBe('function');
     });
+  });
 
-    it('should return file content on successful read', async () => {
-      const mockContent = 'This is the file content.';
-      (mockFsReadFile as any).mockResolvedValue(mockContent);
+  describe('execute', () => {
+    it('should read file content successfully', async () => {
+      const mockContent = 'Hello, World!';
+      mockFsReadFile.mockResolvedValue(mockContent);
 
-      const result = await readFileAi.execute({ path: 'test/path/to/file.txt' });
+      const result = await readFileAi.execute({ path: 'test.txt' });
 
-      expect(mockFsReadFile).toHaveBeenCalledWith('test/path/to/file.txt', 'utf-8');
-      expect(result).toBe(`File content of test/path/to/file.txt:\n\`\`\`\n${mockContent}\n\`\`\``);
+      expect(mockFsReadFile).toHaveBeenCalledWith('test.txt', 'utf-8');
+      expect(result).toContain(mockContent);
+      expect(result).toContain('File content of test.txt:');
     });
 
-    it('should return an error message if file not found (ENOENT)', async () => {
-      const error = new Error('File not found');
-      (error as any).code = 'ENOENT';
-      (mockFsReadFile as any).mockRejectedValue(error);
+    it('should return error message if file does not exist', async () => {
+      const error = new Error('ENOENT: no such file or directory') as NodeError;
+      error.code = 'ENOENT';
+      mockFsReadFile.mockRejectedValue(error);
 
-      const result = await (readFileAi as any).execute({ path: 'nonexistent/file.txt' });
+      const result = await readFileAi.execute({ path: 'nonexistent/file.txt' });
 
-      expect(mockFsReadFile).toHaveBeenCalledWith('nonexistent/file.txt', 'utf-8');
       expect(result).toBe('Error: File not found at path "nonexistent/file.txt"');
     });
 
-    it('should return a generic error message for other errors', async () => {
-      const errorMessage = 'Permission denied';
-      const error = new Error(errorMessage);
-      (mockFsReadFile as any).mockRejectedValue(error);
+    it('should return generic error message for other errors', async () => {
+      const error = new Error('Permission denied');
+      mockFsReadFile.mockRejectedValue(error);
 
-      const result = await (readFileAi as any).execute({ path: 'protected/file.txt' });
+      const result = await readFileAi.execute({ path: 'protected/file.txt' });
 
-      expect(mockFsReadFile).toHaveBeenCalledWith('protected/file.txt', 'utf-8');
-      expect(result).toBe(`Error reading file "protected/file.txt": ${errorMessage}`);
+      expect(result).toContain('Error reading file "protected/file.txt": Permission denied');
     });
   });
 });

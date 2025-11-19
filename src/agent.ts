@@ -1,21 +1,25 @@
 import { anthropic } from '@ai-sdk/anthropic';
-import { generateText, ModelMessage } from 'ai';
+import { generateText, ModelMessage, LanguageModel, Tool } from 'ai';
 
 export interface AgentConfig {
   logToolUse?: boolean;
   model: string;
 }
 
+type GenerateTextResult = Awaited<ReturnType<typeof generateText>>;
+type ToolCall = GenerateTextResult['toolCalls'][number];
+type ToolResult = GenerateTextResult['toolResults'][number];
+
 export class Agent {
   private getUserInput: () => Promise<string>;
   private handleResponse: (respond: string) => Promise<void>;
-  private tools: Record<string, any>;
+  private tools: Record<string, Tool>;
   private config: AgentConfig;
 
   constructor(
     getUserInput: () => Promise<string>,
     handleResponse: (respond: string) => Promise<void>,
-    tools: Record<string, any> = {},
+    tools: Record<string, Tool> = {},
     config: AgentConfig
   ) {
     this.getUserInput = getUserInput;
@@ -47,7 +51,7 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
         }
 
         const { text, toolCalls, toolResults, response } = await generateText({
-          model: anthropic(this.config.model) as any,
+          model: anthropic(this.config.model) as LanguageModel,
           system: this.SYSTEM_PROMPT,
           messages: conversation,
           tools: this.tools,
@@ -77,7 +81,7 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
     }
   }
 
-  private logToolUsage(toolCalls: any[] | undefined, toolResults: any[] | undefined): void {
+  private logToolUsage(toolCalls: ToolCall[] | undefined, toolResults: ToolResult[] | undefined): void {
     if (!this.config.logToolUse) return;
 
     if (toolCalls && toolCalls.length > 0) {
@@ -92,7 +96,7 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
     }
   }
 
-  private async processResponse(text: string | undefined, response: any): Promise<void> {
+  private async processResponse(text: string | undefined, response: GenerateTextResult['response']): Promise<void> {
     if (text) {
       await this.handleResponse(text);
       return;
@@ -100,7 +104,7 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
 
     // When tools are used, the response might be in response.messages instead of text
     // Find the last assistant message and display its content
-    const assistantMessages = response.messages.filter((msg: any) => msg.role === 'assistant');
+    const assistantMessages = response.messages.filter((msg) => msg.role === 'assistant');
     if (assistantMessages.length > 0) {
       const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
       if (typeof lastAssistantMessage.content === 'string') {
@@ -108,8 +112,8 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
       } else if (Array.isArray(lastAssistantMessage.content)) {
         // Handle array content - extract text parts
         const textParts = lastAssistantMessage.content
-          .filter((part: any) => part.type === 'text')
-          .map((part: any) => (part as any).text)
+          .filter((part) => part.type === 'text')
+          .map((part) => (part as { type: 'text'; text: string }).text)
           .join('');
         if (textParts) {
           await this.handleResponse(textParts);

@@ -12,33 +12,34 @@ vi.mock('@ai-sdk/anthropic', () => ({
 }));
 
 // Import the mocked functions after mocking
-import { generateText } from 'ai';
+import { generateText, GenerateTextResult } from 'ai';
 const generateTextMock = vi.mocked(generateText);
+
+import { Tool } from 'ai';
 
 describe('Agent', () => {
   let mockGetUserInput: ReturnType<typeof vi.fn>;
   let mockHandleResponse: ReturnType<typeof vi.fn>;
-  let mockTool: any;
+  let mockTool: Tool;
   let agent: Agent;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetUserInput = vi.fn();
     mockHandleResponse = vi.fn();
-    const testToolInputSchema = z.object({
-      query: z.string(),
-    });
 
     mockTool = {
-      description: 'A tool for testing',
-      inputSchema: testToolInputSchema,
-      execute: vi.fn(async (input: unknown) => {
-        const parsedInput = testToolInputSchema.parse(input);
-        return `Tool result for ${parsedInput.query}`;
-      }),
-    };
+      description: 'test tool',
+      parameters: {},
+      execute: vi.fn(),
+    } as unknown as Tool;
 
-    agent = new Agent(mockGetUserInput, mockHandleResponse, { test_tool: mockTool }, { logToolUse: true, model: 'mocked-model' });
+    agent = new Agent(
+      mockGetUserInput,
+      mockHandleResponse,
+      { test_tool: mockTool },
+      { model: 'test-model' }
+    );
   });
 
   afterEach(() => {
@@ -58,8 +59,13 @@ describe('Agent', () => {
         messages: [
           { role: 'assistant', content: 'Hi there!' }
         ]
-      }
-    } as any);
+      },
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } as any,
+      warnings: [],
+      request: {},
+      steps: []
+    } as unknown as GenerateTextResult<any, any>);
 
     await agent.start();
 
@@ -112,9 +118,17 @@ describe('Agent', () => {
       toolCalls: [],
       toolResults: [],
       response: {
+        id: 'test-id',
+        timestamp: new Date(),
+        modelId: 'claude-3-5-sonnet-20240620',
         messages: [{ role: 'assistant', content: 'Hi' }]
-      }
-    } as any);
+      },
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } as any,
+      warnings: [],
+      request: {},
+      steps: []
+    } as unknown as GenerateTextResult<any, any>);
 
     await configAgent.start();
 
