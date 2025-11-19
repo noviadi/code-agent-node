@@ -29,7 +29,8 @@ async function main() {
     edit_file: editFileAi
   };
   const agentConfig: AgentConfig = {
-    logToolUse: true, // Enable tool use logging for debugging
+    logToolUse: process.env.LOG_TOOL_USE !== 'false', // Enable tool use logging by default, disable if LOG_TOOL_USE=false
+    model: process.env.MODEL || 'claude-sonnet-4-5-20250929',
   };
   const agent = new Agent(getUserInput, handleResponse, tools, agentConfig);
   await agent.start();

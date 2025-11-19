@@ -1,8 +1,9 @@
 import { anthropic } from '@ai-sdk/anthropic';
-import { generateText, ModelMessage} from 'ai';
+import { generateText, ModelMessage } from 'ai';
 
 export interface AgentConfig {
   logToolUse?: boolean;
+  model: string;
 }
 
 export class Agent {
@@ -15,7 +16,7 @@ export class Agent {
     getUserInput: () => Promise<string>,
     handleResponse: (respond: string) => Promise<void>,
     tools: Record<string, any> = {},
-    config: AgentConfig = { logToolUse: true } // Default to logging tool use
+    config: AgentConfig
   ) {
     this.getUserInput = getUserInput;
     this.handleResponse = handleResponse;
@@ -45,23 +46,23 @@ Analyze the user's request and use these tools whenever necessary to accomplish 
 
       try {
         const { text, toolCalls, toolResults, response } = await generateText({
-          model: anthropic('claude-3-5-sonnet-20240620') as any,
+          model: anthropic(this.config.model) as any,
           system: systemPrompt,
           messages: conversation,
           tools: this.tools,
         });
 
         if (this.config.logToolUse) {
-            if (toolCalls && toolCalls.length > 0) {
-                for(const toolCall of toolCalls) {
-                    console.log(`\x1b[96mClaude is using tool:\x1b[0m ${toolCall.toolName} with input ${JSON.stringify(toolCall.input)}`);
-                }
+          if (toolCalls && toolCalls.length > 0) {
+            for (const toolCall of toolCalls) {
+              console.log(`\x1b[96mClaude is using tool:\x1b[0m ${toolCall.toolName} with input ${JSON.stringify(toolCall.input)}`);
             }
-            if (toolResults && toolResults.length > 0) {
-                for(const toolResult of toolResults) {
-                    console.log(`\x1b[96mTool result:\x1b[0m ${JSON.stringify(toolResult.output)}`);
-                }
+          }
+          if (toolResults && toolResults.length > 0) {
+            for (const toolResult of toolResults) {
+              console.log(`\x1b[96mTool result:\x1b[0m ${JSON.stringify(toolResult.output)}`);
             }
+          }
         }
 
         // Add the response messages to the conversation history

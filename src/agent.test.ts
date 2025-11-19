@@ -38,7 +38,7 @@ describe('Agent', () => {
       }),
     };
 
-    agent = new Agent(mockGetUserInput, mockHandleResponse, { test_tool: mockTool });
+    agent = new Agent(mockGetUserInput, mockHandleResponse, { test_tool: mockTool }, { logToolUse: true, model: 'mocked-model' });
   });
 
   afterEach(() => {
@@ -82,7 +82,7 @@ describe('Agent', () => {
     const apiError = new Error('AI SDK error');
     generateTextMock.mockRejectedValueOnce(apiError);
 
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     await agent.start();
 
@@ -95,5 +95,38 @@ describe('Agent', () => {
   it('should create agent with tools', () => {
     expect(agent).toBeDefined();
     expect(typeof agent.start).toBe('function');
+  });
+
+  it('should use configured model', async () => {
+    const customModel = 'custom-model-v1';
+    const configAgent = new Agent(
+      mockGetUserInput,
+      mockHandleResponse,
+      { test_tool: mockTool },
+      { logToolUse: false, model: customModel }
+    );
+
+    mockGetUserInput.mockResolvedValueOnce('Hello').mockResolvedValueOnce('exit');
+    generateTextMock.mockResolvedValueOnce({
+      text: 'Hi',
+      toolCalls: [],
+      toolResults: [],
+      response: {
+        messages: [{ role: 'assistant', content: 'Hi' }]
+      }
+    } as any);
+
+    await configAgent.start();
+
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'mocked-model', // The mock returns this, but we check the call arguments
+      })
+    );
+
+    // Verify the anthropic function was called with the custom model
+    // We need to import anthropic mock to check this
+    const { anthropic } = await import('@ai-sdk/anthropic');
+    expect(anthropic).toHaveBeenCalledWith(customModel);
   });
 });
