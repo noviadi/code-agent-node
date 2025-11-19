@@ -5,7 +5,7 @@ import { readFileAi } from './tools/read-file';
 import { listFilesAi } from './tools/list-files';
 import { editFileAi } from './tools/edit-file';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.error('Error: ANTHROPIC_API_KEY environment variable is not set.');
